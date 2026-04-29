@@ -1,224 +1,153 @@
-import React from "react";
 import { useNavigate } from "react-router-dom";
 
-const COLORS = {
-  bg: "#0f172a",
-  text: "#e2e8f0",
-  sub: "#94a3b8",
-  blue: "#3b82f6",
-  green: "#22c55e",
-  border: "#334155"
-};
-
-function LandingPage() {
+export default function LandingPage() {
 
   const nav = useNavigate();
 
   return (
     <div style={{
-      background: COLORS.bg,
-      color: COLORS.text,
-      minHeight: "100vh",
-      padding: 40,
-      fontFamily: "Arial, sans-serif"
+      background: "#0f172a",
+      color: "#e2e8f0",
+      fontFamily: "sans-serif"
     }}>
 
       {/* NAVBAR */}
       <div style={{
         display: "flex",
         justifyContent: "space-between",
-        marginBottom: 40
+        padding: "20px 40px"
       }}>
         <h2>CyberClinic</h2>
 
         <div>
-          <button onClick={() => nav("/pricing")}
-            style={{ marginRight: 10 }}>
-            Pricing
-          </button>
-
-          <button onClick={() => nav("/login")}>
-            Login
-          </button>
+          <button onClick={() => nav("/pricing")} style={btnGhost}>Pricing</button>
+          <button onClick={() => nav("/login")} style={btnGhost}>Login</button>
         </div>
       </div>
 
       {/* HERO */}
-      <div style={{ textAlign: "center", marginTop: 60 }}>
-        <h1 style={{ fontSize: 48, fontWeight: "bold" }}>
-          AI-Powered Healthcare Compliance
+      <div style={{
+        textAlign: "center",
+        padding: "100px 20px"
+      }}>
+        <h1 style={{ fontSize: 48 }}>
+          Automate HIPAA Compliance in Minutes — Not Months
         </h1>
 
-        <p style={{
-          color: COLORS.sub,
-          fontSize: 20,
-          marginTop: 15
-        }}>
-          HIPAA compliance automation for hospitals, clinics,
-          and multi-site healthcare organizations
-        </p>
-
-        <p style={{
-          color: COLORS.sub,
-          marginTop: 10
-        }}>
-          Detect risk. Prove compliance. Generate audit-ready reports in minutes.
+        <p style={{ marginTop: 20, color: "#94a3b8" }}>
+          AI-powered compliance audits, risk scoring, and audit-ready reports
+          for clinics, hospitals, and healthcare startups.
         </p>
 
         <div style={{ marginTop: 30 }}>
-          <button
-            onClick={() => nav("/signup")}
-            style={{
-              padding: "14px 24px",
-              background: COLORS.blue,
-              border: "none",
-              color: "white",
-              borderRadius: 8,
-              marginRight: 10,
-              fontSize: 16
-            }}
-          >
-            Start Free Trial
+          <button style={btnPrimary}>
+            Run Free Compliance Scan
           </button>
 
-          <button
-            onClick={() => nav("/pricing")}
-            style={{
-              padding: "14px 24px",
-              background: "transparent",
-              border: `1px solid ${COLORS.border}`,
-              color: COLORS.text,
-              borderRadius: 8
-            }}
-          >
-            View Pricing
+          <button style={btnSecondary} onClick={() => nav("/pricing")}>
+            See Plans
           </button>
         </div>
 
-        <p style={{
-          marginTop: 10,
-          color: COLORS.sub,
-          fontSize: 14
-        }}>
-          HIPAA-ready • Secure • Audit-compliant
+        <p style={{ marginTop: 10, fontSize: 12 }}>
+          No credit card required • Instant results • Audit-ready reports
         </p>
+      </div>
+
+      {/* TRUST */}
+      <div style={section}>
+        <h2>Trusted by Healthcare Teams & Compliance Professionals</h2>
+
+        <p style={{ color: "#94a3b8" }}>
+          HIPAA-ready • Secure • Designed for CMS-aligned workflows
+        </p>
+      </div>
+
+      {/* PROBLEM / SOLUTION */}
+      <div style={sectionRow}>
+        <div>
+          <h3>Compliance Is Expensive, Slow, and Stressful</h3>
+          <ul>
+            <li>Manual audits take months</li>
+            <li>Consultants cost $10K+</li>
+            <li>Risk of penalties and audits</li>
+          </ul>
+        </div>
+
+        <div>
+          <h3>CyberClinic automates everything</h3>
+          <ul>
+            <li>✔ Instant HIPAA risk scoring</li>
+            <li>✔ AI-powered recommendations</li>
+            <li>✔ Audit-ready reports in minutes</li>
+          </ul>
+        </div>
       </div>
 
       {/* FEATURES */}
-      <div style={{
-        marginTop: 100,
-        textAlign: "center"
-      }}>
+      <div style={section}>
         <h2>Platform Capabilities</h2>
 
-        <div style={{
-          display: "flex",
-          justifyContent: "center",
-          marginTop: 40,
-          flexWrap: "wrap"
-        }}>
-
-          <div style={{ margin: 20, width: 260 }}>
-            <h4>Compliance Scoring</h4>
-            <p style={{ color: COLORS.sub }}>
-              Real-time HIPAA risk analysis with executive-level scoring dashboards
-            </p>
-          </div>
-
-          <div style={{ margin: 20, width: 260 }}>
-            <h4>AI Recommendations</h4>
-            <p style={{ color: COLORS.sub }}>
-              Intelligent compliance insights powered by advanced AI models
-            </p>
-          </div>
-
-          <div style={{ margin: 20, width: 260 }}>
-            <h4>Audit Reports</h4>
-            <p style={{ color: COLORS.sub }}>
-              Downloadable, audit-ready reports for regulators and stakeholders
-            </p>
-          </div>
-
+        <div style={grid}>
+          <Feature
+            title="Compliance Scoring"
+            text="Real-time HIPAA risk scoring with executive dashboards."
+          />
+          <Feature
+            title="AI Recommendations"
+            text="AI identifies compliance gaps and how to fix them."
+          />
+          <Feature
+            title="Audit Reports"
+            text="Download regulator-ready reports instantly."
+          />
         </div>
       </div>
 
-      {/* VALUE PROPOSITION */}
-      <div style={{
-        marginTop: 100,
-        textAlign: "center"
-      }}>
-        <h2>Why CyberClinic</h2>
+      {/* PRICING */}
+      <div style={section}>
+        <h2>Simple, Transparent Pricing</h2>
 
-        <div style={{
-          display: "flex",
-          justifyContent: "center",
-          marginTop: 40,
-          flexWrap: "wrap"
-        }}>
+        <div style={grid}>
+          <Pricing
+            title="Starter"
+            price="$49/mo"
+            features={[
+              "Basic compliance scan",
+              "Limited reports",
+              "Email support"
+            ]}
+          />
 
-          <div style={{ margin: 20, width: 260 }}>
-            <h4>Reduce Risk</h4>
-            <p style={{ color: COLORS.sub }}>
-              Identify vulnerabilities before they become compliance violations
-            </p>
-          </div>
+          <Pricing
+            title="Professional"
+            price="$99/mo"
+            highlight
+            features={[
+              "Full dashboard",
+              "AI recommendations",
+              "Audit reports"
+            ]}
+          />
 
-          <div style={{ margin: 20, width: 260 }}>
-            <h4>Save Time</h4>
-            <p style={{ color: COLORS.sub }}>
-              Automate compliance workflows that normally take weeks
-            </p>
-          </div>
-
-          <div style={{ margin: 20, width: 260 }}>
-            <h4>Stay Audit-Ready</h4>
-            <p style={{ color: COLORS.sub }}>
-              Always prepared with real-time compliance documentation
-            </p>
-          </div>
-
-        </div>
-      </div>
-
-      {/* TRUST SECTION */}
-      <div style={{
-        marginTop: 100,
-        textAlign: "center"
-      }}>
-        <h2>Built for Healthcare Compliance Leaders</h2>
-
-        <p style={{ color: COLORS.sub }}>
-          Designed for CIOs, compliance officers, healthcare administrators, and security teams
-        </p>
-
-        <div style={{ marginTop: 20 }}>
-          <span style={{ margin: 10 }}>HIPAA Ready</span>
-          <span style={{ margin: 10 }}>Enterprise Secure</span>
-          <span style={{ margin: 10 }}>Audit Friendly</span>
-          <span style={{ margin: 10 }}>Scalable</span>
+          <Pricing
+            title="Enterprise"
+            price="Custom"
+            features={[
+              "Multi-site",
+              "Dedicated support",
+              "Custom integrations"
+            ]}
+          />
         </div>
       </div>
 
       {/* FINAL CTA */}
-      <div style={{
-        marginTop: 120,
-        textAlign: "center"
-      }}>
-        <h2>Start Your Compliance Transformation Today</h2>
+      <div style={section}>
+        <h2>Get Compliance-Ready Today</h2>
 
-        <button
-          onClick={() => nav("/signup")}
-          style={{
-            marginTop: 20,
-            padding: "16px 28px",
-            background: COLORS.green,
-            border: "none",
-            color: "white",
-            borderRadius: 8,
-            fontSize: 18
-          }}
-        >
-          Create Your Account
+        <button style={btnPrimary}>
+          Run Free Compliance Scan
         </button>
       </div>
 
@@ -226,4 +155,86 @@ function LandingPage() {
   );
 }
 
-export default LandingPage;
+/* ================= STYLES ================= */
+
+const section = {
+  padding: "80px 20px",
+  textAlign: "center"
+};
+
+const sectionRow = {
+  padding: "80px 20px",
+  display: "flex",
+  justifyContent: "space-around",
+  flexWrap: "wrap",
+  gap: 40
+};
+
+const grid = {
+  display: "flex",
+  justifyContent: "center",
+  gap: 30,
+  flexWrap: "wrap",
+  marginTop: 40
+};
+
+const btnPrimary = {
+  padding: "12px 24px",
+  background: "#3b82f6",
+  border: "none",
+  color: "white",
+  borderRadius: 8,
+  marginRight: 10,
+  cursor: "pointer"
+};
+
+const btnSecondary = {
+  padding: "12px 24px",
+  background: "transparent",
+  border: "1px solid #3b82f6",
+  color: "#3b82f6",
+  borderRadius: 8,
+  cursor: "pointer"
+};
+
+const btnGhost = {
+  marginLeft: 10,
+  background: "transparent",
+  border: "none",
+  color: "#e2e8f0",
+  cursor: "pointer"
+};
+
+/* ================= COMPONENTS ================= */
+
+function Feature({ title, text }) {
+  return (
+    <div style={{
+      width: 260,
+      padding: 20,
+      border: "1px solid #334155",
+      borderRadius: 12
+    }}>
+      <h3>{title}</h3>
+      <p style={{ color: "#94a3b8" }}>{text}</p>
+    </div>
+  );
+}
+
+function Pricing({ title, price, features, highlight }) {
+  return (
+    <div style={{
+      width: 260,
+      padding: 20,
+      borderRadius: 12,
+      border: highlight ? "2px solid #3b82f6" : "1px solid #334155"
+    }}>
+      <h3>{title}</h3>
+      <h2>{price}</h2>
+
+      <ul>
+        {features.map((f, i) => <li key={i}>{f}</li>)}
+      </ul>
+    </div>
+  );
+}
