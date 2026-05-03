@@ -46,20 +46,26 @@ function KPIDashboard({ orgId }) {
 
   const [trend, setTrend] = useState([]);
   const [latest, setLatest] = useState(null);
+  const [ready, setReady] = useState(false); // ✅ NEW
 
   useEffect(() => {
     if (!orgId) return;
 
     API.get(`/analytics/trend/${orgId}`)
       .then(res => {
-        setTrend(res.data);
+        const data = Array.isArray(res.data) ? res.data : [];
 
-        if (res.data.length > 0) {
-          setLatest(res.data[res.data.length - 1]);
+        setTrend(data);
+
+        if (data.length > 0) {
+          setLatest(data[data.length - 1]);
         }
+
+        setReady(true); // ✅ only render charts after data loads
       })
       .catch(() => {
         console.log("No analytics yet");
+        setReady(true); // still allow render
       });
 
   }, [orgId]);
@@ -81,6 +87,18 @@ function KPIDashboard({ orgId }) {
       <h2 style={{ color }}>{value}</h2>
     </div>
   );
+
+  /* =========================
+     SAFE GUARD (CRITICAL)
+  ========================= */
+
+  if (!ready) {
+    return (
+      <div style={{ color: COLORS.sub, padding: 20 }}>
+        Loading analytics...
+      </div>
+    );
+  }
 
   return (
     <div style={{ marginBottom: 30 }}>
@@ -114,33 +132,37 @@ function KPIDashboard({ orgId }) {
         padding: 20,
         borderRadius: 12,
         border: `1px solid ${COLORS.border}`,
-        marginBottom: 25
+        marginBottom: 25,
+        minHeight: 260 // ✅ CRITICAL FIX
       }}>
 
         <h3>Compliance Trend</h3>
 
-        <ResponsiveContainer width="100%" height={250}>
-          <LineChart data={trend}>
-            <XAxis dataKey="date" stroke="#94a3b8" />
-            <YAxis stroke="#94a3b8" />
-            <Tooltip />
-            <Line
-              type="monotone"
-              dataKey="score"
-              stroke={COLORS.blue}
-              strokeWidth={3}
-            />
-          </LineChart>
-        </ResponsiveContainer>
+        {trend.length > 0 && (
+          <ResponsiveContainer width="100%" height={250}>
+            <LineChart data={trend}>
+              <XAxis dataKey="date" stroke="#94a3b8" />
+              <YAxis stroke="#94a3b8" />
+              <Tooltip />
+              <Line
+                type="monotone"
+                dataKey="score"
+                stroke={COLORS.blue}
+                strokeWidth={3}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        )}
 
       </div>
 
-      {/* CATEGORY BREAKDOWN (SIMULATED FOR NOW) */}
+      {/* CATEGORY BREAKDOWN */}
       <div style={{
         background: COLORS.card,
         padding: 20,
         borderRadius: 12,
-        border: `1px solid ${COLORS.border}`
+        border: `1px solid ${COLORS.border}`,
+        minHeight: 260 // ✅ CRITICAL FIX
       }}>
 
         <h3>Risk Breakdown</h3>
