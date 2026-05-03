@@ -5,7 +5,7 @@ import KPIDashboard from "./components/KPIDashboard";
 import ExecutivePanel from "./components/ExecutivePanel";
 import LandingPage from "./pages/LandingPage";
 import PricingPage from "./pages/PricingPage";
-import Signup from "./pages/Signup"; // ✅ NEW
+import Signup from "./pages/Signup";
 import API from "./api";
 
 import {
@@ -48,7 +48,6 @@ const card = {
 ========================= */
 
 function Login({ setToken }) {
-
   const nav = useNavigate();
 
   const [email, setEmail] = useState("");
@@ -62,7 +61,6 @@ function Login({ setToken }) {
       setToken(res.data.access_token);
 
       nav("/dashboard");
-
     } catch {
       alert("Invalid credentials");
     }
@@ -117,7 +115,6 @@ function Login({ setToken }) {
             Create account
           </span>
         </p>
-
       </div>
     </div>
   );
@@ -128,7 +125,6 @@ function Login({ setToken }) {
 ========================= */
 
 function Sidebar() {
-
   const nav = useNavigate();
 
   return (
@@ -160,7 +156,6 @@ function Sidebar() {
 ========================= */
 
 function TopBar({ currentOrg, setCurrentOrg }) {
-
   return (
     <div style={{
       height: 70,
@@ -183,28 +178,34 @@ function TopBar({ currentOrg, setCurrentOrg }) {
 }
 
 /* =========================
-   DASHBOARD
+   DASHBOARD (FIXED)
 ========================= */
 
 function Dashboard() {
-
   const [currentOrg, setCurrentOrg] = useState(null);
   const [subscription, setSubscription] = useState(null);
   const [reportId, setReportId] = useState(null);
   const [reportPaid, setReportPaid] = useState(false);
+  const [loading, setLoading] = useState(true); // ✅ NEW
 
   const isPro = subscription?.is_active;
 
   useEffect(() => {
+    const load = async () => {
+      try {
+        const orgRes = await API.get("/org/list");
+        const subRes = await API.get("/subscription/status");
 
-    API.get("/org/list").then(res => {
-      setCurrentOrg(res.data[0]);
-    });
+        setCurrentOrg(orgRes.data?.[0] || null);
+        setSubscription(subRes.data || null);
+      } catch (err) {
+        console.error("Dashboard load error:", err);
+      } finally {
+        setLoading(false); // ✅ prevents early render crash
+      }
+    };
 
-    API.get("/subscription/status").then(res => {
-      setSubscription(res.data);
-    });
-
+    load();
   }, []);
 
   useEffect(() => {
@@ -212,29 +213,21 @@ function Dashboard() {
 
     API.get(`/reports/status/${reportId}`)
       .then(res => setReportPaid(res.data.is_paid));
-
   }, [reportId]);
 
- const runScan = async () => {
-  try {
-    alert("Running scan...");
-
-    const res = await API.get("/automation/run");
-
-    console.log("✅ Dashboard scan:", res.data);
-
-    alert("Scan complete!");
-
-  } catch (err) {
-    console.error("❌ Dashboard scan failed:", err);
-
-    alert("Scan failed. Backend may be waking up.");
-  }
-};
+  const runScan = async () => {
+    try {
+      alert("Running scan...");
+      const res = await API.get("/automation/run");
+      console.log("Scan:", res.data);
+      alert("Scan complete!");
+    } catch {
+      alert("Scan failed.");
+    }
+  };
 
   const generateReport = async () => {
-
-    if (!isPro) {
+    if (!isPro || !currentOrg) {
       return alert("Upgrade required");
     }
 
@@ -252,6 +245,11 @@ function Dashboard() {
     window.location.href = res.data.url;
   };
 
+  /* 🔥 CRITICAL FIX */
+  if (loading) {
+    return <div style={{ padding: 40, color: "#94a3b8" }}>Loading dashboard...</div>;
+  }
+
   return (
     <div style={{ display: "flex", background: COLORS.bg }}>
 
@@ -265,8 +263,9 @@ function Dashboard() {
 
           <h1>Compliance Intelligence Dashboard</h1>
 
-          <KPIDashboard orgId={currentOrg?.id} />
-          <ExecutivePanel orgId={currentOrg?.id} />
+          {/* ✅ SAFE RENDER */}
+          {currentOrg && <KPIDashboard orgId={currentOrg.id} />}
+          {currentOrg && <ExecutivePanel orgId={currentOrg.id} />}
 
           <div style={card}>
             <h3>Subscription</h3>
@@ -315,21 +314,17 @@ function PrivateRoute({ children }) {
 ========================= */
 
 function AppWrapper() {
-
   const [token, setToken] = useState(localStorage.getItem("token"));
 
   return (
     <Router>
-
       <Routes>
 
-        {/* PUBLIC */}
         <Route path="/" element={<LandingPage />} />
         <Route path="/pricing" element={<PricingPage />} />
         <Route path="/login" element={<Login setToken={setToken} />} />
         <Route path="/signup" element={<Signup />} />
 
-        {/* PROTECTED */}
         <Route path="/dashboard" element={
           <PrivateRoute>
             <Dashboard />
@@ -343,7 +338,6 @@ function AppWrapper() {
         } />
 
       </Routes>
-
     </Router>
   );
 }
