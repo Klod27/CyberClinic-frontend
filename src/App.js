@@ -215,10 +215,22 @@ function Dashboard() {
 
   }, [reportId]);
 
-  const runScan = async () => {
-    await API.get("/automation/run");
-    alert("Scan complete");
-  };
+ const runScan = async () => {
+  try {
+    alert("Running scan...");
+
+    const res = await API.get("/automation/run");
+
+    console.log("✅ Dashboard scan:", res.data);
+
+    alert("Scan complete!");
+
+  } catch (err) {
+    console.error("❌ Dashboard scan failed:", err);
+
+    alert("Scan failed. Backend may be waking up.");
+  }
+};
 
   const generateReport = async () => {
 

@@ -1,8 +1,108 @@
 import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import API, { createCheckoutSession } from "../api";
 
 export default function LandingPage() {
-
   const nav = useNavigate();
+
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState(null);
+  const [upgradeLoading, setUpgradeLoading] = useState(false);
+
+  /* =========================
+     SAFE STYLE ACCESS FIX
+     Prevents cssRules crash
+  ========================= */
+  useEffect(() => {
+    try {
+      const sheets = document.styleSheets;
+
+      for (let i = 0; i < sheets.length; i++) {
+        try {
+          // 🔥 safe access
+          const rules = sheets[i].cssRules;
+        } catch (err) {
+          console.warn("⚠️ Skipping inaccessible stylesheet:", sheets[i].href);
+        }
+      }
+    } catch (err) {
+      console.warn("Stylesheet check failed:", err);
+    }
+  }, []);
+
+  /* =========================
+     RUN COMPLIANCE SCAN
+  ========================= */
+
+  const runScan = async (e) => {
+    if (e) e.preventDefault();
+
+    console.log("🔥 BUTTON CLICKED");
+
+    try {
+      setLoading(true);
+      setError(null);
+      setResult(null);
+
+      const FULL_URL = "https://cyberclinic-backend.onrender.com/automation/run";
+
+      console.log("🚀 Calling API:", FULL_URL);
+
+      const res = await fetch(FULL_URL);
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+
+      const data = await res.json();
+
+      console.log("✅ Scan result:", data);
+
+      setResult(data);
+
+    } catch (err) {
+      console.error("❌ FULL ERROR:", err);
+
+      if (err.message.includes("Failed to fetch")) {
+        setError("🌐 Network/CORS issue. Backend blocked request.");
+      } else {
+        setError(`❌ Scan failed: ${err.message}`);
+      }
+
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /* =========================
+     STRIPE UPGRADE
+  ========================= */
+
+  const handleUpgrade = async () => {
+    try {
+      setUpgradeLoading(true);
+      setError(null);
+
+      console.log("💳 Creating checkout session...");
+
+      const res = await createCheckoutSession("subscription");
+
+      console.log("✅ Stripe response:", res);
+
+      if (res?.data?.url) {
+        window.location.href = res.data.url;
+      } else {
+        throw new Error("Missing Stripe URL");
+      }
+
+    } catch (err) {
+      console.error("❌ Upgrade error:", err);
+      setError("Upgrade failed. Backend or Stripe issue.");
+    } finally {
+      setUpgradeLoading(false);
+    }
+  };
 
   return (
     <div style={{
@@ -40,11 +140,18 @@ export default function LandingPage() {
         </p>
 
         <div style={{ marginTop: 30 }}>
-          <button style={btnPrimary}>
-            Run Free Compliance Scan
+          <button
+            style={btnPrimary}
+            onClick={runScan}
+            disabled={loading}
+          >
+            {loading ? "Running Scan..." : "Run Free Compliance Scan"}
           </button>
 
-          <button style={btnSecondary} onClick={() => nav("/pricing")}>
+          <button
+            style={btnSecondary}
+            onClick={() => nav("/pricing")}
+          >
             See Plans
           </button>
         </div>
@@ -52,36 +159,44 @@ export default function LandingPage() {
         <p style={{ marginTop: 10, fontSize: 12 }}>
           No credit card required • Instant results • Audit-ready reports
         </p>
+
+        {/* ERROR DISPLAY */}
+        {error && (
+          <div style={{
+            marginTop: 20,
+            color: "#ef4444",
+            background: "#1e293b",
+            padding: 12,
+            borderRadius: 8
+          }}>
+            {error}
+          </div>
+        )}
       </div>
+
+      {/* RESULT */}
+      {result && (
+        <div style={section}>
+          <h2>Scan Result</h2>
+
+          <pre style={{
+            textAlign: "left",
+            background: "#020617",
+            padding: 20,
+            borderRadius: 10,
+            overflowX: "auto"
+          }}>
+            {JSON.stringify(result, null, 2)}
+          </pre>
+        </div>
+      )}
 
       {/* TRUST */}
       <div style={section}>
         <h2>Trusted by Healthcare Teams & Compliance Professionals</h2>
-
         <p style={{ color: "#94a3b8" }}>
           HIPAA-ready • Secure • Designed for CMS-aligned workflows
         </p>
-      </div>
-
-      {/* PROBLEM / SOLUTION */}
-      <div style={sectionRow}>
-        <div>
-          <h3>Compliance Is Expensive, Slow, and Stressful</h3>
-          <ul>
-            <li>Manual audits take months</li>
-            <li>Consultants cost $10K+</li>
-            <li>Risk of penalties and audits</li>
-          </ul>
-        </div>
-
-        <div>
-          <h3>CyberClinic automates everything</h3>
-          <ul>
-            <li>✔ Instant HIPAA risk scoring</li>
-            <li>✔ AI-powered recommendations</li>
-            <li>✔ Audit-ready reports in minutes</li>
-          </ul>
-        </div>
       </div>
 
       {/* FEATURES */}
@@ -89,18 +204,9 @@ export default function LandingPage() {
         <h2>Platform Capabilities</h2>
 
         <div style={grid}>
-          <Feature
-            title="Compliance Scoring"
-            text="Real-time HIPAA risk scoring with executive dashboards."
-          />
-          <Feature
-            title="AI Recommendations"
-            text="AI identifies compliance gaps and how to fix them."
-          />
-          <Feature
-            title="Audit Reports"
-            text="Download regulator-ready reports instantly."
-          />
+          <Feature title="Compliance Scoring" text="Real-time HIPAA risk scoring." />
+          <Feature title="AI Recommendations" text="AI identifies gaps instantly." />
+          <Feature title="Audit Reports" text="Download regulator-ready reports." />
         </div>
       </div>
 
@@ -109,36 +215,33 @@ export default function LandingPage() {
         <h2>Simple, Transparent Pricing</h2>
 
         <div style={grid}>
-          <Pricing
-            title="Starter"
-            price="$49/mo"
-            features={[
-              "Basic compliance scan",
-              "Limited reports",
-              "Email support"
-            ]}
-          />
+          <Pricing title="Starter" price="$49/mo" features={[
+            "Basic compliance scan",
+            "Limited reports",
+            "Email support"
+          ]} />
 
-          <Pricing
-            title="Professional"
-            price="$99/mo"
-            highlight
-            features={[
-              "Full dashboard",
-              "AI recommendations",
-              "Audit reports"
-            ]}
-          />
+          <Pricing title="Professional" price="$99/mo" highlight features={[
+            "Full dashboard",
+            "AI recommendations",
+            "Audit reports"
+          ]} />
 
-          <Pricing
-            title="Enterprise"
-            price="Custom"
-            features={[
-              "Multi-site",
-              "Dedicated support",
-              "Custom integrations"
-            ]}
-          />
+          <Pricing title="Enterprise" price="Custom" features={[
+            "Multi-site",
+            "Dedicated support",
+            "Custom integrations"
+          ]} />
+        </div>
+
+        <div style={{ marginTop: 30 }}>
+          <button
+            style={btnPrimary}
+            onClick={handleUpgrade}
+            disabled={upgradeLoading}
+          >
+            {upgradeLoading ? "Redirecting..." : "Upgrade Now"}
+          </button>
         </div>
       </div>
 
@@ -146,8 +249,8 @@ export default function LandingPage() {
       <div style={section}>
         <h2>Get Compliance-Ready Today</h2>
 
-        <button style={btnPrimary}>
-          Run Free Compliance Scan
+        <button style={btnPrimary} onClick={runScan}>
+          {loading ? "Running Scan..." : "Run Free Compliance Scan"}
         </button>
       </div>
 
@@ -160,14 +263,6 @@ export default function LandingPage() {
 const section = {
   padding: "80px 20px",
   textAlign: "center"
-};
-
-const sectionRow = {
-  padding: "80px 20px",
-  display: "flex",
-  justifyContent: "space-around",
-  flexWrap: "wrap",
-  gap: 40
 };
 
 const grid = {
