@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
-import { useState, useEffect } from "react";
-import API, { createCheckoutSession } from "../api";
+import { useState } from "react";
+import { createCheckoutSession } from "../api";
 
 export default function LandingPage() {
   const nav = useNavigate();
@@ -11,66 +11,41 @@ export default function LandingPage() {
   const [upgradeLoading, setUpgradeLoading] = useState(false);
 
   /* =========================
-     SAFE STYLE ACCESS FIX
-     Prevents cssRules crash
+     PRIMARY FLOW (FIXED)
   ========================= */
-  useEffect(() => {
+  const runScan = () => {
     try {
-      const sheets = document.styleSheets;
-
-      for (let i = 0; i < sheets.length; i++) {
-        try {
-          // 🔥 safe access
-          const rules = sheets[i].cssRules;
-        } catch (err) {
-          console.warn("⚠️ Skipping inaccessible stylesheet:", sheets[i].href);
-        }
-      }
-    } catch (err) {
-      console.warn("Stylesheet check failed:", err);
+      nav("/hipaa");
+    } catch {
+      window.location.href = "/hipaa";
     }
-  }, []);
+  };
 
   /* =========================
-     RUN COMPLIANCE SCAN
+     SAFE DEMO PREVIEW (NEW)
   ========================= */
-
-  const runScan = async (e) => {
-    if (e) e.preventDefault();
-
-    console.log("🔥 BUTTON CLICKED");
-
+  const runPreview = async () => {
     try {
       setLoading(true);
       setError(null);
-      setResult(null);
 
-      const FULL_URL = "https://cyberclinic-backend.onrender.com/automation/run";
+      // 🔥 SIMULATED DEMO DATA (NO BROKEN API)
+      const demo = {
+        score: 78,
+        risk: "Medium",
+        findings: [
+          { issue: "Access Control Weakness", description: "User permissions not properly enforced" },
+          { issue: "Encryption Gap", description: "Data not encrypted at rest" }
+        ]
+      };
 
-      console.log("🚀 Calling API:", FULL_URL);
+      setTimeout(() => {
+        setResult(demo);
+        setLoading(false);
+      }, 800);
 
-      const res = await fetch(FULL_URL);
-
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
-      }
-
-      const data = await res.json();
-
-      console.log("✅ Scan result:", data);
-
-      setResult(data);
-
-    } catch (err) {
-      console.error("❌ FULL ERROR:", err);
-
-      if (err.message.includes("Failed to fetch")) {
-        setError("🌐 Network/CORS issue. Backend blocked request.");
-      } else {
-        setError(`❌ Scan failed: ${err.message}`);
-      }
-
-    } finally {
+    } catch {
+      setError("Preview failed.");
       setLoading(false);
     }
   };
@@ -78,27 +53,21 @@ export default function LandingPage() {
   /* =========================
      STRIPE UPGRADE
   ========================= */
-
   const handleUpgrade = async () => {
     try {
       setUpgradeLoading(true);
       setError(null);
 
-      console.log("💳 Creating checkout session...");
-
       const res = await createCheckoutSession("subscription");
-
-      console.log("✅ Stripe response:", res);
 
       if (res?.data?.url) {
         window.location.href = res.data.url;
       } else {
-        throw new Error("Missing Stripe URL");
+        throw new Error();
       }
 
-    } catch (err) {
-      console.error("❌ Upgrade error:", err);
-      setError("Upgrade failed. Backend or Stripe issue.");
+    } catch {
+      setError("Upgrade failed.");
     } finally {
       setUpgradeLoading(false);
     }
@@ -135,32 +104,32 @@ export default function LandingPage() {
         </h1>
 
         <p style={{ marginTop: 20, color: "#94a3b8" }}>
-          AI-powered compliance audits, risk scoring, and audit-ready reports
-          for clinics, hospitals, and healthcare startups.
+          AI-powered compliance audits based on real HIPAA Security Rule controls.
         </p>
 
         <div style={{ marginTop: 30 }}>
-          <button
-            style={btnPrimary}
-            onClick={runScan}
-            disabled={loading}
-          >
-            {loading ? "Running Scan..." : "Run Free Compliance Scan"}
+          <button style={btnPrimary} onClick={runScan}>
+            Run Free Compliance Scan
           </button>
 
-          <button
-            style={btnSecondary}
-            onClick={() => nav("/pricing")}
-          >
+          <button style={btnSecondary} onClick={() => nav("/pricing")}>
             See Plans
           </button>
         </div>
 
         <p style={{ marginTop: 10, fontSize: 12 }}>
-          No credit card required • Instant results • Audit-ready reports
+          Guided assessment • Real scoring • Audit-ready reports
         </p>
 
-        {/* ERROR DISPLAY */}
+        {/* SAFE PREVIEW */}
+        <div style={{ marginTop: 20 }}>
+          <button style={btnGhost} onClick={runPreview}>
+            Preview AI Engine (Demo)
+          </button>
+        </div>
+
+        {loading && <p style={{ marginTop: 10 }}>Loading preview...</p>}
+
         {error && (
           <div style={{
             marginTop: 20,
@@ -174,10 +143,10 @@ export default function LandingPage() {
         )}
       </div>
 
-      {/* RESULT */}
+      {/* PREVIEW RESULT */}
       {result && (
         <div style={section}>
-          <h2>Scan Result</h2>
+          <h2>AI Engine Preview</h2>
 
           <pre style={{
             textAlign: "left",
@@ -188,14 +157,18 @@ export default function LandingPage() {
           }}>
             {JSON.stringify(result, null, 2)}
           </pre>
+
+          <button style={btnPrimary} onClick={runScan}>
+            Continue Full Assessment
+          </button>
         </div>
       )}
 
       {/* TRUST */}
       <div style={section}>
         <h2>Trusted by Healthcare Teams & Compliance Professionals</h2>
-        <p style={{ color: "#94a3b8" }}>
-          HIPAA-ready • Secure • Designed for CMS-aligned workflows
+        <p style={{ color: "#94a3b8", maxWidth: 600, margin: "0 auto" }}>
+          Evaluate HIPAA safeguards, calculate risk, and generate audit-ready reports.
         </p>
       </div>
 
@@ -204,9 +177,9 @@ export default function LandingPage() {
         <h2>Platform Capabilities</h2>
 
         <div style={grid}>
-          <Feature title="Compliance Scoring" text="Real-time HIPAA risk scoring." />
-          <Feature title="AI Recommendations" text="AI identifies gaps instantly." />
-          <Feature title="Audit Reports" text="Download regulator-ready reports." />
+          <Feature title="Compliance Scoring" text="Real questionnaire-based scoring." />
+          <Feature title="AI Recommendations" text="Actionable remediation insights." />
+          <Feature title="Audit Reports" text="Download hospital-grade reports." />
         </div>
       </div>
 
@@ -216,8 +189,8 @@ export default function LandingPage() {
 
         <div style={grid}>
           <Pricing title="Starter" price="$49/mo" features={[
-            "Basic compliance scan",
-            "Limited reports",
+            "Assessment",
+            "Basic reports",
             "Email support"
           ]} />
 
@@ -234,23 +207,20 @@ export default function LandingPage() {
           ]} />
         </div>
 
-        <div style={{ marginTop: 30 }}>
-          <button
-            style={btnPrimary}
-            onClick={handleUpgrade}
-            disabled={upgradeLoading}
-          >
-            {upgradeLoading ? "Redirecting..." : "Upgrade Now"}
-          </button>
-        </div>
+        <button
+          style={btnPrimary}
+          onClick={handleUpgrade}
+          disabled={upgradeLoading}
+        >
+          {upgradeLoading ? "Redirecting..." : "Upgrade Now"}
+        </button>
       </div>
 
       {/* FINAL CTA */}
       <div style={section}>
-        <h2>Get Compliance-Ready Today</h2>
-
+        <h2>Start Your HIPAA Assessment Today</h2>
         <button style={btnPrimary} onClick={runScan}>
-          {loading ? "Running Scan..." : "Run Free Compliance Scan"}
+          Start Assessment
         </button>
       </div>
 
@@ -258,78 +228,70 @@ export default function LandingPage() {
   );
 }
 
-/* ================= STYLES ================= */
+/* =========================
+   UI STYLES
+========================= */
 
 const section = {
-  padding: "80px 20px",
+  padding: "60px 20px",
   textAlign: "center"
 };
 
 const grid = {
   display: "flex",
+  gap: 20,
   justifyContent: "center",
-  gap: 30,
   flexWrap: "wrap",
-  marginTop: 40
+  marginTop: 30
 };
 
 const btnPrimary = {
-  padding: "12px 24px",
-  background: "#3b82f6",
-  border: "none",
+  background: "#2563eb",
   color: "white",
+  padding: "12px 24px",
   borderRadius: 8,
-  marginRight: 10,
-  cursor: "pointer"
+  border: "none",
+  cursor: "pointer",
+  marginRight: 10
 };
 
 const btnSecondary = {
-  padding: "12px 24px",
   background: "transparent",
   border: "1px solid #3b82f6",
   color: "#3b82f6",
+  padding: "12px 24px",
   borderRadius: 8,
   cursor: "pointer"
 };
 
 const btnGhost = {
-  marginLeft: 10,
   background: "transparent",
   border: "none",
-  color: "#e2e8f0",
+  color: "#94a3b8",
+  marginLeft: 10,
   cursor: "pointer"
 };
 
-/* ================= COMPONENTS ================= */
+const Feature = ({ title, text }) => (
+  <div style={{ maxWidth: 250 }}>
+    <h4>{title}</h4>
+    <p style={{ color: "#94a3b8" }}>{text}</p>
+  </div>
+);
 
-function Feature({ title, text }) {
-  return (
-    <div style={{
-      width: 260,
-      padding: 20,
-      border: "1px solid #334155",
-      borderRadius: 12
-    }}>
-      <h3>{title}</h3>
-      <p style={{ color: "#94a3b8" }}>{text}</p>
-    </div>
-  );
-}
+const Pricing = ({ title, price, features, highlight }) => (
+  <div style={{
+    padding: 20,
+    borderRadius: 10,
+    background: highlight ? "#1e293b" : "#111827",
+    border: "1px solid #334155",
+    width: 220
+  }}>
+    <h3>{title}</h3>
+    <h2>{price}</h2>
 
-function Pricing({ title, price, features, highlight }) {
-  return (
-    <div style={{
-      width: 260,
-      padding: 20,
-      borderRadius: 12,
-      border: highlight ? "2px solid #3b82f6" : "1px solid #334155"
-    }}>
-      <h3>{title}</h3>
-      <h2>{price}</h2>
-
-      <ul>
-        {features.map((f, i) => <li key={i}>{f}</li>)}
-      </ul>
-    </div>
-  );
-}
+    {features.map((f, i) => (
+      <p key={i} style={{ fontSize: 14 }}>{f}</p>
+    ))}
+  </div>
+);

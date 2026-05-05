@@ -42,33 +42,90 @@ const getRiskColor = (risk) => {
    COMPONENT
 ========================= */
 
-function KPIDashboard({ orgId }) {
+function KPIDashboard({ orgId, data }) {
 
   const [trend, setTrend] = useState([]);
   const [latest, setLatest] = useState(null);
-  const [ready, setReady] = useState(false); // ✅ NEW
+  const [categoryData, setCategoryData] = useState([]);
+  const [ready, setReady] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
+  /* =========================
+     MOUNT FIX
+  ========================= */
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  /* =========================
+     LOAD TREND (KEEP FEATURE)
+  ========================= */
   useEffect(() => {
     if (!orgId) return;
 
     API.get(`/analytics/trend/${orgId}`)
       .then(res => {
-        const data = Array.isArray(res.data) ? res.data : [];
+        const dataArr = Array.isArray(res.data) ? res.data : [];
 
-        setTrend(data);
+        setTrend(dataArr);
 
-        if (data.length > 0) {
-          setLatest(data[data.length - 1]);
+        if (dataArr.length > 0) {
+          const last = dataArr[dataArr.length - 1];
+          setLatest(last);
+
+          if (last.category_scores) {
+            const formatted = Object.entries(last.category_scores).map(
+              ([key, value]) => ({
+                name: key,
+                value: value
+              })
+            );
+            setCategoryData(formatted);
+          }
         }
 
-        setReady(true); // ✅ only render charts after data loads
+        setReady(true);
       })
       .catch(() => {
-        console.log("No analytics yet");
-        setReady(true); // still allow render
+        setReady(true);
       });
 
   }, [orgId]);
+
+  /* =========================
+     🔥 FALLBACK TO REPORT (CRITICAL FIX)
+  ========================= */
+  useEffect(() => {
+    if (!data) return;
+
+    // If no trend yet, build minimal one
+    if (!trend.length) {
+      setTrend([
+        {
+          date: new Date().toLocaleDateString(),
+          score: data.score
+        }
+      ]);
+    }
+
+    // Always sync latest with report
+    setLatest({
+      score: data.score,
+      risk: data.risk
+    });
+
+    // Build category data from report
+    if (data.category_scores) {
+      const formatted = Object.entries(data.category_scores).map(
+        ([key, value]) => ({
+          name: key,
+          value: value
+        })
+      );
+      setCategoryData(formatted);
+    }
+
+  }, [data]);
 
   /* =========================
      KPI CARDS
@@ -89,10 +146,10 @@ function KPIDashboard({ orgId }) {
   );
 
   /* =========================
-     SAFE GUARD (CRITICAL)
+     LOADING
   ========================= */
 
-  if (!ready) {
+  if (!ready || !mounted) {
     return (
       <div style={{ color: COLORS.sub, padding: 20 }}>
         Loading analytics...
@@ -126,19 +183,19 @@ function KPIDashboard({ orgId }) {
 
       </div>
 
-      {/* TREND CHART */}
+      {/* TREND */}
       <div style={{
         background: COLORS.card,
         padding: 20,
         borderRadius: 12,
         border: `1px solid ${COLORS.border}`,
         marginBottom: 25,
-        minHeight: 260 // ✅ CRITICAL FIX
+        minHeight: 260
       }}>
 
         <h3>Compliance Trend</h3>
 
-        {trend.length > 0 && (
+        {trend.length > 0 ? (
           <ResponsiveContainer width="100%" height={250}>
             <LineChart data={trend}>
               <XAxis dataKey="date" stroke="#94a3b8" />
@@ -149,37 +206,44 @@ function KPIDashboard({ orgId }) {
                 dataKey="score"
                 stroke={COLORS.blue}
                 strokeWidth={3}
+                dot={false}
+                isAnimationActive={false}
               />
             </LineChart>
           </ResponsiveContainer>
+        ) : (
+          <p style={{ color: COLORS.sub }}>No trend data yet</p>
         )}
 
       </div>
 
-      {/* CATEGORY BREAKDOWN */}
+      {/* CATEGORY */}
       <div style={{
         background: COLORS.card,
         padding: 20,
         borderRadius: 12,
         border: `1px solid ${COLORS.border}`,
-        minHeight: 260 // ✅ CRITICAL FIX
+        minHeight: 260
       }}>
 
         <h3>Risk Breakdown</h3>
 
-        <ResponsiveContainer width="100%" height={250}>
-          <BarChart data={[
-            { name: "Admin", value: 70 },
-            { name: "Technical", value: 60 },
-            { name: "Physical", value: 80 },
-            { name: "Network", value: 65 }
-          ]}>
-            <XAxis dataKey="name" stroke="#94a3b8" />
-            <YAxis stroke="#94a3b8" />
-            <Tooltip />
-            <Bar dataKey="value" fill={COLORS.blue} />
-          </BarChart>
-        </ResponsiveContainer>
+        {categoryData.length > 0 ? (
+          <ResponsiveContainer width="100%" height={250}>
+            <BarChart data={categoryData}>
+              <XAxis dataKey="name" stroke="#94a3b8" />
+              <YAxis stroke="#94a3b8" />
+              <Tooltip />
+              <Bar
+                dataKey="value"
+                fill={COLORS.blue}
+                isAnimationActive={false}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        ) : (
+          <p style={{ color: COLORS.sub }}>No category data yet</p>
+        )}
 
       </div>
 

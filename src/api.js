@@ -4,21 +4,14 @@ import axios from "axios";
 =====================================
 🔥 BULLETPROOF BASE URL RESOLUTION
 =====================================
-This ensures:
-1. ENV is used if correctly injected
-2. If NOT → fallback STILL works in production
-3. NEVER accidentally calls Vercel origin
-=====================================
 */
 
 const ENV_URL = process.env.REACT_APP_API_URL?.trim();
 
-// Detect if running on Vercel / production domain
 const isProduction =
   window.location.hostname !== "localhost" &&
   window.location.hostname !== "127.0.0.1";
 
-// 🔥 FORCE backend in production if ENV fails
 const BASE_URL =
   ENV_URL && ENV_URL.startsWith("http")
     ? ENV_URL
@@ -28,7 +21,7 @@ const BASE_URL =
 
 /*
 =====================================
-DEBUG (VERY IMPORTANT)
+DEBUG
 =====================================
 */
 console.log("🌐 ENV URL:", ENV_URL);
@@ -132,12 +125,17 @@ API FUNCTIONS
 =====================================
 */
 
-export const runComplianceScan = () =>
-  API.get("/automation/run");
+// ✅ FIXED (this was broken)
+export const runComplianceScan = () => {
+  return API.post("/automation/run");
+};
 
-export const getSubscriptionStatus = () =>
-  API.get("/subscription/status");
+// ✅ CLEAN + SAFE
+export const getSubscriptionStatus = () => {
+  return API.get("/subscription/status");
+};
 
+// ✅ CLEAN + SAFE
 export const createCheckoutSession = (mode = "subscription", reportId = null) => {
   let url = `/billing/create-checkout-session?mode=${mode}`;
 

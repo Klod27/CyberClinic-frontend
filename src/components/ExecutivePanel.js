@@ -1,5 +1,4 @@
-import React, { useEffect, useState } from "react";
-import API from "../api";
+import React from "react";
 
 const COLORS = {
   card: "#111827",
@@ -8,12 +7,11 @@ const COLORS = {
   sub: "#94a3b8",
   red: "#ef4444",
   yellow: "#f59e0b",
-  green: "#22c55e",
-  blue: "#3b82f6"
+  green: "#22c55e"
 };
 
 /* =========================
-   SEVERITY NORMALIZER
+   SEVERITY
 ========================= */
 
 const severityScore = (s) => {
@@ -28,56 +26,13 @@ const severityScore = (s) => {
   return 0;
 };
 
-function ExecutivePanel({ orgId }) {
+/* =========================
+   COMPONENT
+========================= */
 
-  const [data, setData] = useState(null);
-  const [findings, setFindings] = useState([]);
-  const [categories, setCategories] = useState({});
-  const [ready, setReady] = useState(false); // ✅ NEW
-
-  useEffect(() => {
-    if (!orgId) return;
-
-    const load = async () => {
-      try {
-        // KPI DATA
-        const kpiRes = await API.get(`/analytics/kpi/${orgId}`);
-        setData(kpiRes.data);
-
-        // 🔥 SAFE scan fetch
-        const scanRes = await API.get("/automation/run");
-
-        setFindings(Array.isArray(scanRes.data.findings) ? scanRes.data.findings : []);
-        setCategories(scanRes.data.category_scores || {});
-
-      } catch (err) {
-        console.error("ExecutivePanel error:", err);
-      } finally {
-        setReady(true); // ✅ prevents early crash
-      }
-    };
-
-    load();
-
-  }, [orgId]);
-
-  /* =========================
-     LOADING GUARD
-  ========================= */
-
-  if (!ready) {
-    return (
-      <div style={{ color: COLORS.sub, padding: 20 }}>
-        Loading executive data...
-      </div>
-    );
-  }
+function ExecutivePanel({ data }) {
 
   if (!data) return null;
-
-  /* =========================
-     SUMMARY
-  ========================= */
 
   const summary = () => {
     if (data.score >= 85)
@@ -87,19 +42,14 @@ function ExecutivePanel({ orgId }) {
     return "High compliance risk. Immediate action required.";
   };
 
-  /* =========================
-     PRIORITIZED FINDINGS
-  ========================= */
+  const findings = data.findings || [];
+  const categories = data.category_scores || {};
 
   const topFindings = [...findings]
     .sort((a, b) => severityScore(b.severity) - severityScore(a.severity))
     .slice(0, 5);
 
-  /* =========================
-     CATEGORY DISPLAY
-  ========================= */
-
-  const categoryList = Object.entries(categories || {});
+  const categoryList = Object.entries(categories);
 
   return (
     <div style={{ marginBottom: 30 }}>
@@ -114,16 +64,14 @@ function ExecutivePanel({ orgId }) {
       }}>
         <h3>Executive Summary</h3>
 
-        <p style={{ color: COLORS.sub }}>
-          {summary()}
-        </p>
+        <p style={{ color: COLORS.sub }}>{summary()}</p>
 
         <p style={{ marginTop: 10 }}>
           Score: <b>{data.score}%</b> | Risk: <b>{data.risk}</b>
         </p>
       </div>
 
-      {/* CATEGORY BREAKDOWN */}
+      {/* CATEGORY */}
       <div style={{
         background: COLORS.card,
         padding: 20,
@@ -134,13 +82,11 @@ function ExecutivePanel({ orgId }) {
         <h3>Risk Categories</h3>
 
         {categoryList.length === 0 && (
-          <p style={{ color: COLORS.sub }}>No category data yet.</p>
+          <p style={{ color: COLORS.sub }}>No category data</p>
         )}
 
         {categoryList.map(([name, value], i) => (
-          <div key={i} style={{ marginTop: 8 }}>
-            {name}: {value}%
-          </div>
+          <div key={i}>{name}: {value}%</div>
         ))}
       </div>
 
@@ -154,13 +100,10 @@ function ExecutivePanel({ orgId }) {
         <h3>Top Compliance Issues</h3>
 
         {topFindings.length === 0 && (
-          <p style={{ color: COLORS.sub }}>
-            No major issues detected.
-          </p>
+          <p style={{ color: COLORS.sub }}>No major issues</p>
         )}
 
         {topFindings.map((f, i) => {
-
           const sev = severityScore(f.severity);
 
           return (
@@ -174,15 +117,13 @@ function ExecutivePanel({ orgId }) {
               }`,
               background: "rgba(255,255,255,0.03)"
             }}>
-              <strong>{f.title || f.issue}</strong>
-
+              <strong>{f.issue}</strong>
               <p style={{ margin: 0, color: COLORS.sub }}>
-                {f.description || "Review and remediate"}
+                {f.description}
               </p>
             </div>
           );
         })}
-
       </div>
 
     </div>

@@ -13,11 +13,25 @@ function OrganizationSelector({ currentOrg, setCurrentOrg }) {
     const fetchOrgs = async () => {
       try {
         const res = await API.get("/org/list");
-        setOrgs(res.data);
+        const data = Array.isArray(res.data) ? res.data : [];
 
-        // Set default org if none selected
-        if (res.data.length > 0 && !currentOrg) {
-          setCurrentOrg(res.data[0]);
+        setOrgs(data);
+
+        // 🔥 LOAD SAVED ORG FROM STORAGE
+        const savedOrgId = localStorage.getItem("org_id");
+
+        if (savedOrgId) {
+          const found = data.find(o => String(o.id) === String(savedOrgId));
+          if (found) {
+            setCurrentOrg(found);
+            return;
+          }
+        }
+
+        // 🔥 DEFAULT ORG
+        if (data.length > 0 && !currentOrg) {
+          setCurrentOrg(data[0]);
+          localStorage.setItem("org_id", data[0].id);
         }
 
       } catch (err) {
@@ -31,17 +45,25 @@ function OrganizationSelector({ currentOrg, setCurrentOrg }) {
   }, []);
 
   // ----------------------------------
-  // SWITCH ORGANIZATION
+  // SWITCH ORGANIZATION (UPDATED)
   // ----------------------------------
   const handleSwitch = async (orgId) => {
     try {
+
+      // 🔥 SAVE LOCALLY FIRST
+      localStorage.setItem("org_id", orgId);
+
+      // 🔥 OPTIONAL BACKEND SWITCH (kept)
       await API.post(`/org/switch?org_id=${orgId}`);
 
-      const selected = orgs.find(o => o.id === orgId);
+      const selected = orgs.find(o => String(o.id) === String(orgId));
+
       setCurrentOrg(selected);
 
-      // Refresh app state (simple approach)
-      window.location.reload();
+      // 🔥 CLEAR OLD DATA (IMPORTANT)
+      localStorage.removeItem("latest_report");
+
+      // 🔥 DO NOT reload page — React handles it now
 
     } catch (err) {
       console.error("Error switching organization:", err);
@@ -83,7 +105,7 @@ function OrganizationSelector({ currentOrg, setCurrentOrg }) {
 
       <select
         value={currentOrg?.id || ""}
-        onChange={(e) => handleSwitch(parseInt(e.target.value))}
+        onChange={(e) => handleSwitch(e.target.value)}
         style={{
           marginTop: 6,
           width: "100%",

@@ -6,6 +6,7 @@ import ExecutivePanel from "./components/ExecutivePanel";
 import LandingPage from "./pages/LandingPage";
 import PricingPage from "./pages/PricingPage";
 import Signup from "./pages/Signup";
+import HipaaAssessment from "./pages/HipaaAssessment";
 import API from "./api";
 
 import {
@@ -15,8 +16,6 @@ import {
   useNavigate,
   Navigate
 } from "react-router-dom";
-
-import HipaaAssessment from "./pages/HipaaAssessment";
 
 /* =========================
    DESIGN SYSTEM
@@ -78,43 +77,12 @@ function Login({ setToken }) {
       <div style={{ width: 360 }}>
         <h2>CyberClinic Secure Login</h2>
 
-        <input
-          placeholder="Email"
-          onChange={e => setEmail(e.target.value)}
-          style={{ width: "100%", padding: 12, marginBottom: 10 }}
-        />
+        <input placeholder="Email" onChange={e => setEmail(e.target.value)} />
+        <input type="password" placeholder="Password" onChange={e => setPassword(e.target.value)} />
 
-        <input
-          type="password"
-          placeholder="Password"
-          onChange={e => setPassword(e.target.value)}
-          style={{ width: "100%", padding: 12 }}
-        />
+        <button onClick={login}>Login</button>
 
-        <button
-          onClick={login}
-          style={{
-            width: "100%",
-            marginTop: 15,
-            padding: 12,
-            background: COLORS.blue,
-            border: "none",
-            color: "white",
-            borderRadius: 8
-          }}
-        >
-          Login
-        </button>
-
-        <p style={{ marginTop: 15 }}>
-          New?{" "}
-          <span
-            style={{ color: COLORS.blue, cursor: "pointer" }}
-            onClick={() => nav("/signup")}
-          >
-            Create account
-          </span>
-        </p>
+        <p onClick={() => nav("/signup")}>Create account</p>
       </div>
     </div>
   );
@@ -128,18 +96,11 @@ function Sidebar() {
   const nav = useNavigate();
 
   return (
-    <div style={{
-      width: 240,
-      background: COLORS.sidebar,
-      padding: 20,
-      color: COLORS.text
-    }}>
+    <div style={{ width: 240, background: COLORS.sidebar, padding: 20 }}>
       <h2>CyberClinic</h2>
 
       <p onClick={() => nav("/dashboard")}>Dashboard</p>
       <p onClick={() => nav("/hipaa")}>Assessments</p>
-
-      <hr />
 
       <button onClick={() => {
         localStorage.clear();
@@ -152,43 +113,16 @@ function Sidebar() {
 }
 
 /* =========================
-   TOP BAR
-========================= */
-
-function TopBar({ currentOrg, setCurrentOrg }) {
-  return (
-    <div style={{
-      height: 70,
-      background: "#111827",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between",
-      padding: "0 30px"
-    }}>
-      <h2>CyberClinic SaaS</h2>
-
-      <OrganizationSelector
-        currentOrg={currentOrg}
-        setCurrentOrg={setCurrentOrg}
-      />
-
-      <span>AI Compliance Engine</span>
-    </div>
-  );
-}
-
-/* =========================
-   DASHBOARD (FIXED)
+   DASHBOARD
 ========================= */
 
 function Dashboard() {
+
+  const nav = useNavigate(); // ✅ FIX
+
   const [currentOrg, setCurrentOrg] = useState(null);
   const [subscription, setSubscription] = useState(null);
-  const [reportId, setReportId] = useState(null);
-  const [reportPaid, setReportPaid] = useState(false);
-  const [loading, setLoading] = useState(true); // ✅ NEW
-
-  const isPro = subscription?.is_active;
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const load = async () => {
@@ -199,104 +133,82 @@ function Dashboard() {
         setCurrentOrg(orgRes.data?.[0] || null);
         setSubscription(subRes.data || null);
       } catch (err) {
-        console.error("Dashboard load error:", err);
+        console.error(err);
       } finally {
-        setLoading(false); // ✅ prevents early render crash
+        setLoading(false);
       }
     };
 
     load();
   }, []);
 
-  useEffect(() => {
-    if (!reportId) return;
-
-    API.get(`/reports/status/${reportId}`)
-      .then(res => setReportPaid(res.data.is_paid));
-  }, [reportId]);
-
-  const runScan = async () => {
-    try {
-      alert("Running scan...");
-      const res = await API.get("/automation/run");
-      console.log("Scan:", res.data);
-      alert("Scan complete!");
-    } catch {
-      alert("Scan failed.");
-    }
-  };
-
-  const generateReport = async () => {
-    if (!isPro || !currentOrg) {
-      return alert("Upgrade required");
-    }
-
-    const res = await API.post(`/reports/generate?org_id=${currentOrg.id}`);
-    setReportId(res.data.report_id);
-  };
-
-  const unlockReport = async () => {
-    const res = await API.post(`/billing/create-checkout-session?mode=report&report_id=${reportId}`);
-    window.location.href = res.data.url;
-  };
-
-  const upgrade = async () => {
-    const res = await API.post(`/billing/create-checkout-session?mode=subscription`);
-    window.location.href = res.data.url;
-  };
-
-  /* 🔥 CRITICAL FIX */
-  if (loading) {
-    return <div style={{ padding: 40, color: "#94a3b8" }}>Loading dashboard...</div>;
-  }
+  if (loading) return <div>Loading dashboard...</div>;
 
   return (
     <div style={{ display: "flex", background: COLORS.bg }}>
 
       <Sidebar />
 
-      <div style={{ flex: 1 }}>
+      <div style={{ flex: 1, padding: 30 }}>
 
-        <TopBar currentOrg={currentOrg} setCurrentOrg={setCurrentOrg} />
+        <h1>Compliance Dashboard</h1>
 
-        <div style={{ padding: 30 }}>
+        {currentOrg && <KPIDashboard orgId={currentOrg.id} />}
+        {currentOrg && <ExecutivePanel orgId={currentOrg.id} />}
 
-          <h1>Compliance Intelligence Dashboard</h1>
-
-          {/* ✅ SAFE RENDER */}
-          {currentOrg && <KPIDashboard orgId={currentOrg.id} />}
-          {currentOrg && <ExecutivePanel orgId={currentOrg.id} />}
-
-          <div style={card}>
-            <h3>Subscription</h3>
-            {subscription && (
-              <>
-                <p>{subscription.plan}</p>
-                {!isPro && <button onClick={upgrade}>Upgrade</button>}
-              </>
-            )}
-          </div>
-
-          <div style={card}>
-            <button onClick={runScan}>Run Compliance Scan</button>
-            <button onClick={generateReport}>Generate Report</button>
-          </div>
-
-          {reportId && (
-            <div style={card}>
-              {reportPaid
-                ? <button onClick={() => window.open(`/reports/download/${reportId}`)}>Download PDF</button>
-                : <button onClick={unlockReport}>Pay to Unlock</button>}
-            </div>
-          )}
-
-          <div style={card}>
-            <TeamManagement />
-          </div>
-
+        <div style={card}>
+          <h3>Subscription</h3>
+          {subscription?.plan}
         </div>
+
+        <div style={card}>
+          {/* 🔥 FIXED NAVIGATION */}
+          <button onClick={() => nav("/hipaa")}>
+            Start New Assessment
+          </button>
+        </div>
+
+        <div style={card}>
+          <TeamManagement />
+        </div>
+
       </div>
     </div>
+  );
+}
+
+/* =========================
+   ROUTES
+========================= */
+
+function AppWrapper() {
+  const [token, setToken] = useState(localStorage.getItem("token"));
+
+  return (
+    <Router>
+      <Routes>
+
+        {/* PUBLIC */}
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/pricing" element={<PricingPage />} />
+        <Route path="/login" element={<Login setToken={setToken} />} />
+        <Route path="/signup" element={<Signup />} />
+
+        {/* DASHBOARD (PROTECTED) */}
+        <Route path="/dashboard" element={
+          <PrivateRoute>
+            <Dashboard />
+          </PrivateRoute>
+        } />
+
+        {/* 🔥 ASSESSMENT (PUBLIC ENTRY POINT) */}
+        <Route path="/hipaa" element={<HipaaAssessment />} />
+
+        {/* 🔥 OPTIONAL FALLBACK */}
+        <Route path="*" element={<Navigate to="/" />} />
+
+      </Routes>
+    </Router>
   );
 }
 
@@ -307,39 +219,6 @@ function Dashboard() {
 function PrivateRoute({ children }) {
   const token = localStorage.getItem("token");
   return token ? children : <Navigate to="/login" />;
-}
-
-/* =========================
-   APP ROOT
-========================= */
-
-function AppWrapper() {
-  const [token, setToken] = useState(localStorage.getItem("token"));
-
-  return (
-    <Router>
-      <Routes>
-
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/pricing" element={<PricingPage />} />
-        <Route path="/login" element={<Login setToken={setToken} />} />
-        <Route path="/signup" element={<Signup />} />
-
-        <Route path="/dashboard" element={
-          <PrivateRoute>
-            <Dashboard />
-          </PrivateRoute>
-        } />
-
-        <Route path="/hipaa" element={
-          <PrivateRoute>
-            <HipaaAssessment />
-          </PrivateRoute>
-        } />
-
-      </Routes>
-    </Router>
-  );
 }
 
 export default AppWrapper;
