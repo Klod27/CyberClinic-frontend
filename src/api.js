@@ -58,12 +58,13 @@ API.interceptors.response.use(
       "/login",
       "/signup",
       "/pricing",
-      "/hipaa"
+      "/hipaa",
+      "/dashboard",
     ];
 
     const publicApiCalls = [
       "/hipaa/questions",
-      "/hipaa/submit"
+      "/hipaa/submit",
     ];
 
     const isPublicPage = publicRoutes.includes(window.location.pathname);
@@ -71,6 +72,13 @@ API.interceptors.response.use(
 
     if (status === 401) {
       console.warn("🔒 Unauthorized:", url);
+
+      const isBillingCall = url.includes("/billing/create-checkout-session");
+
+      if (isBillingCall) {
+        window.location.href = "/pricing";
+        return Promise.reject(error);
+      }
 
       localStorage.removeItem("token");
 
@@ -115,14 +123,16 @@ export const getSubscriptionStatus = () => {
   return API.get("/subscription/status");
 };
 
-export const createCheckoutSession = (mode = "subscription", reportId = null) => {
-  let url = `/billing/create-checkout-session?mode=${mode}`;
+export const createCheckoutSession = () => {
+  console.warn("Checkout is protected. Redirecting to pricing for demo flow.");
+  window.location.href = "/pricing";
 
-  if (reportId) {
-    url += `&report_id=${reportId}`;
-  }
-
-  return API.post(url);
+  return Promise.resolve({
+    data: {
+      status: "redirected",
+      url: "/pricing"
+    }
+  });
 };
 
 export default API;
