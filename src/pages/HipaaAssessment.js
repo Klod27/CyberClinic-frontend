@@ -10,7 +10,6 @@ const API =
   "https://cyberclinic-backend.onrender.com";
 
 function HipaaAssessment() {
-
   const [questions, setQuestions] = useState([]);
   const [answers, setAnswers] = useState({});
   const [step, setStep] = useState(0);
@@ -19,36 +18,32 @@ function HipaaAssessment() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
 
-  /* =========================
-     PLAN (FREE VS PRO)
-  ========================= */
   const plan = localStorage.getItem("plan") || "free";
   const isPro = plan === "pro";
-
   const FREE_LIMIT = 10;
 
-  /* =========================
-     LOAD QUESTIONS
-  ========================= */
   useEffect(() => {
     const loadQuestions = async () => {
       try {
         const res = await axios.get(`${API}/hipaa/questions`);
-
         let q = res.data?.questions || res.data;
 
-        if (!Array.isArray(q)) throw new Error();
+        if (!Array.isArray(q)) throw new Error("Invalid question format");
 
         q = q.map(item => ({
           id: item.id,
           question: item.question,
           category: item.category || "General",
-          weight: item.weight || 5
+          weight: item.weight || 5,
+          severity: item.severity || "Medium",
+          hipaa_reference: item.hipaa_reference || ""
         }));
 
         setQuestions(q);
+      } catch (err) {
+        console.error("Question load failed:", err);
+        setError("Could not load full assessment questions. Showing fallback questions.");
 
-      } catch {
         setQuestions([
           { id: "1", question: "Do you enforce MFA?", category: "Technical", weight: 10 },
           { id: "2", question: "Encrypt PHI?", category: "Technical", weight: 10 }
@@ -61,61 +56,54 @@ function HipaaAssessment() {
     loadQuestions();
   }, []);
 
-  /* =========================
-     APPLY FREE LIMIT
-  ========================= */
   const visibleQuestions = isPro
     ? questions
     : questions.slice(0, FREE_LIMIT);
 
-  const categories = [...new Set(visibleQuestions.map(q => q.category))];
+  const categories = [...new Set(visibleQuestions.map(q => q.category || "General"))];
 
   const currentCategory = categories[step] || "";
   const currentQuestions = visibleQuestions.filter(
-    q => q.category === currentCategory
+    q => (q.category || "General") === currentCategory
   );
 
-  /* =========================
-     ANSWERS
-  ========================= */
   const handleAnswer = (id, value, q) => {
     setAnswers(prev => ({
       ...prev,
       [id]: {
         answer: value,
         weight: q.weight,
-        category: q.category
+        category: q.category || "General"
       }
     }));
   };
+
+  const answeredCount = Object.keys(answers).length;
 
   const progress = categories.length
     ? Math.round(((step + 1) / categories.length) * 100)
     : 0;
 
-  /* =========================
-     STRIPE UPGRADE
-  ========================= */
   const upgradeToPro = async () => {
     try {
+      setError(null);
+
       const res = await axios.post(
         `${API}/billing/create-checkout-session?mode=subscription`
       );
 
-      window.location.href = res.data.url;
+      if (!res.data?.url) throw new Error("Missing Stripe checkout URL");
 
-    } catch {
-      alert("Upgrade failed.");
+      window.location.href = res.data.url;
+    } catch (err) {
+      console.error("Upgrade failed:", err);
+      setError("Upgrade failed. Please try again.");
     }
   };
 
-  /* =========================
-     SUBMIT
-  ========================= */
   const submitAssessment = async () => {
-
     if (!Object.keys(answers).length) {
-      alert("Please answer questions.");
+      alert("Please answer at least one question.");
       return;
     }
 
@@ -130,40 +118,36 @@ function HipaaAssessment() {
         answers
       });
 
-      const scanId = submitRes.data.scan_id;
-
-      const reportRes = await axios.post(`${API}/reports/generate`, {
-        scan_id: scanId
-      });
-
-      const reportData = reportRes.data;
+      const reportData = submitRes.data?.data || submitRes.data;
 
       localStorage.setItem("latest_report", JSON.stringify(reportData));
-
       setResult(reportData);
-
     } catch (err) {
-      console.error(err);
+      console.error("Submission failed:", err);
       setError("Submission failed.");
+    } finally {
+      setSubmitting(false);
     }
-
-    setSubmitting(false);
   };
 
-  /* =========================
-     AI INSIGHTS
-  ========================= */
   const generateInsights = () => {
-    const noCount = Object.values(answers)
-      .filter(a => a.answer === "No").length;
+    const values = Object.values(answers);
+    const noCount = values.filter(a => a.answer === "No").length;
+    const partialCount = values.filter(a => a.answer === "Partial").length;
 
-    if (noCount > 10)
-      return "Critical compliance gaps detected.";
+    if (!values.length) {
+      return "Complete the assessment to generate AI insights.";
+    }
 
-    if (noCount > 5)
-      return "Moderate compliance risk.";
+    if (noCount >= 5) {
+      return "Significant compliance gaps detected. Prioritize administrative safeguards, access controls, and documented remediation.";
+    }
 
-    return "Strong compliance posture.";
+    if (noCount >= 2 || partialCount >= 3) {
+      return "Moderate compliance risk detected. Focus on incomplete safeguards and document corrective action.";
+    }
+
+    return "Strong initial compliance posture. Continue monitoring and periodic reassessment.";
   };
 
   const getColor = (v = 0) => {
@@ -174,21 +158,16 @@ function HipaaAssessment() {
 
   if (loading) return <div style={{ padding: 40 }}>Loading...</div>;
 
-  /* =========================
-     RESULTS VIEW
-  ========================= */
   if (result?.category_scores) {
-
     const chartData = Object.entries(result.category_scores)
       .map(([k, v]) => ({ name: k, score: v }));
 
     return (
       <div style={{ padding: 40 }}>
-
         <h1>HIPAA Compliance Report</h1>
         <h2>Score: {result.score}%</h2>
+        <p><strong>Risk Level:</strong> {result.risk || result.risk_level}</p>
 
-        {/* AI INSIGHTS */}
         <div style={{
           marginTop: 20,
           padding: 15,
@@ -200,18 +179,32 @@ function HipaaAssessment() {
           <p>{generateInsights()}</p>
         </div>
 
-        {/* UPGRADE WALL */}
+        <ResponsiveContainer width="100%" height={300}>
+          <BarChart data={chartData}>
+            <XAxis dataKey="name" />
+            <YAxis domain={[0, 100]} />
+            <Tooltip />
+            <Bar dataKey="score">
+              {chartData.map((e, i) => (
+                <Cell key={i} fill={getColor(e.score)} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+
         {!isPro && (
           <div style={{
             marginTop: 20,
             padding: 20,
             border: "2px dashed #f59e0b",
             borderRadius: 10,
-            background: "#1e293b"
+            background: "#1e293b",
+            color: "white"
           }}>
             <h3>Upgrade Required</h3>
             <p>
-              Unlock full HIPAA analysis, detailed findings, and PDF reports.
+              Unlock the full HIPAA assessment, detailed remediation guidance,
+              PDF reports, and audit-ready documentation.
             </p>
 
             <button onClick={upgradeToPro}>
@@ -220,42 +213,34 @@ function HipaaAssessment() {
           </div>
         )}
 
-        {/* FULL DATA (PRO ONLY) */}
-        {isPro && (
-          <>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={chartData}>
-                <XAxis dataKey="name" />
-                <YAxis domain={[0, 100]} />
-                <Tooltip />
-                <Bar dataKey="score">
-                  {chartData.map((e, i) => (
-                    <Cell key={i} fill={getColor(e.score)} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-
-            <button onClick={() => window.open(result.pdf_url, "_blank")}>
-              Download Report
-            </button>
-          </>
+        {isPro && result.pdf_url && (
+          <button onClick={() => window.open(result.pdf_url, "_blank")}>
+            Download Report
+          </button>
         )}
 
-        <button onClick={() => window.location.href = "/dashboard"}>
-          Go to Dashboard
-        </button>
+        <div style={{ marginTop: 20 }}>
+          <button onClick={() => window.location.href = "/dashboard"}>
+            Go to Dashboard
+          </button>
 
+          <button
+            style={{ marginLeft: 10 }}
+            onClick={() => {
+              setResult(null);
+              setAnswers({});
+              setStep(0);
+            }}
+          >
+            Start New Assessment
+          </button>
+        </div>
       </div>
     );
   }
 
-  /* =========================
-     QUESTIONS VIEW
-  ========================= */
   return (
     <div style={{ padding: 40 }}>
-
       <h1>HIPAA Assessment</h1>
 
       {!isPro && (
@@ -264,7 +249,9 @@ function HipaaAssessment() {
         </p>
       )}
 
-      <p>Step {step + 1} of {categories.length}</p>
+      <p>
+        Step {step + 1} of {categories.length || 1} • {answeredCount} answered
+      </p>
 
       <div style={{ background: "#ddd", height: 10 }}>
         <div style={{
@@ -277,7 +264,7 @@ function HipaaAssessment() {
       <h2>{currentCategory}</h2>
 
       {currentQuestions.map(q => (
-        <div key={q.id}>
+        <div key={q.id} style={{ marginBottom: 12 }}>
           <strong>{q.question}</strong>
           <br />
           <select
@@ -295,15 +282,24 @@ function HipaaAssessment() {
       {error && <p style={{ color: "red" }}>{error}</p>}
 
       <div style={{ marginTop: 20 }}>
-        {step > 0 && <button onClick={() => setStep(step - 1)}>Previous</button>}
-        {step < categories.length - 1 && <button onClick={() => setStep(step + 1)}>Next</button>}
+        {step > 0 && (
+          <button onClick={() => setStep(step - 1)}>
+            Previous
+          </button>
+        )}
+
+        {step < categories.length - 1 && (
+          <button onClick={() => setStep(step + 1)}>
+            Next
+          </button>
+        )}
+
         {step === categories.length - 1 && (
           <button onClick={submitAssessment} disabled={submitting}>
             {submitting ? "Submitting..." : "Submit Assessment"}
           </button>
         )}
       </div>
-
     </div>
   );
 }
