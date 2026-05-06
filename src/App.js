@@ -1,137 +1,33 @@
-import React, { useState, useEffect } from "react";
-import OrganizationSelector from "./components/OrganizationSelector";
-import TeamManagement from "./components/TeamManagement";
-import KPIDashboard from "./components/KPIDashboard";
-import ExecutivePanel from "./components/ExecutivePanel";
-import LandingPage from "./pages/LandingPage";
-import PricingPage from "./pages/PricingPage";
-import Signup from "./pages/Signup";
-import HipaaAssessment from "./pages/HipaaAssessment";
-import API from "./api";
-
-import {
-  BrowserRouter as Router,
-  Routes,
-  Route,
-  useNavigate,
-  Navigate
-} from "react-router-dom";
-
-/* =========================
-   DESIGN SYSTEM
-========================= */
-
-const COLORS = {
-  bg: "#0f172a",
-  sidebar: "#1e293b",
-  panel: "#111827",
-  border: "#334155",
-  text: "#e2e8f0",
-  sub: "#94a3b8",
-  blue: "#3b82f6",
-  green: "#22c55e",
-  red: "#ef4444"
-};
-
-const card = {
-  background: COLORS.panel,
-  padding: 24,
-  borderRadius: 12,
-  marginBottom: 20,
-  border: `1px solid ${COLORS.border}`,
-  boxShadow: "0 6px 24px rgba(0,0,0,0.4)"
-};
-
-/* =========================
-   LOGIN
-========================= */
-
-function Login({ setToken }) {
-  const nav = useNavigate();
-
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-
-  const login = async () => {
-    try {
-      const res = await API.post("/auth/login", { email, password });
-
-      localStorage.setItem("token", res.data.access_token);
-      setToken(res.data.access_token);
-
-      nav("/dashboard");
-    } catch {
-      alert("Invalid credentials");
-    }
-  };
-
-  return (
-    <div style={{
-      height: "100vh",
-      display: "flex",
-      justifyContent: "center",
-      alignItems: "center",
-      background: COLORS.bg,
-      color: COLORS.text
-    }}>
-      <div style={{ width: 360 }}>
-        <h2>CyberClinic Secure Login</h2>
-
-        <input placeholder="Email" onChange={e => setEmail(e.target.value)} />
-        <input type="password" placeholder="Password" onChange={e => setPassword(e.target.value)} />
-
-        <button onClick={login}>Login</button>
-
-        <p onClick={() => nav("/signup")}>Create account</p>
-      </div>
-    </div>
-  );
-}
-
-/* =========================
-   SIDEBAR
-========================= */
-
-function Sidebar() {
-  const nav = useNavigate();
-
-  return (
-    <div style={{ width: 240, background: COLORS.sidebar, padding: 20 }}>
-      <h2>CyberClinic</h2>
-
-      <p onClick={() => nav("/dashboard")}>Dashboard</p>
-      <p onClick={() => nav("/hipaa")}>Assessments</p>
-
-      <button onClick={() => {
-        localStorage.clear();
-        window.location.href = "/";
-      }}>
-        Logout
-      </button>
-    </div>
-  );
-}
-
-/* =========================
-   DASHBOARD
-========================= */
-
 function Dashboard() {
-
-  const nav = useNavigate(); // ✅ FIX
+  const nav = useNavigate();
 
   const [currentOrg, setCurrentOrg] = useState(null);
   const [subscription, setSubscription] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const [report, setReport] = useState(null);
+  const [scanLoading, setScanLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const plan = subscription?.plan || localStorage.getItem("plan") || "free";
+
   useEffect(() => {
     const load = async () => {
       try {
-        const orgRes = await API.get("/org/list");
-        const subRes = await API.get("/subscription/status");
+        const orgRes = await API.get("/org/list").catch(() => ({ data: [] }));
+        const subRes = await API.get("/subscription/status").catch(() => ({ data: null }));
 
         setCurrentOrg(orgRes.data?.[0] || null);
         setSubscription(subRes.data || null);
+
+        const saved = localStorage.getItem("latest_report");
+        if (saved) {
+          try {
+            setReport(JSON.parse(saved));
+          } catch {
+            localStorage.removeItem("latest_report");
+          }
+        }
       } catch (err) {
         console.error(err);
       } finally {
@@ -142,83 +38,153 @@ function Dashboard() {
     load();
   }, []);
 
-  if (loading) return <div>Loading dashboard...</div>;
+  const refreshLatestReport = () => {
+    setScanLoading(true);
+    setError(null);
+
+    try {
+      const saved = localStorage.getItem("latest_report");
+
+      if (!saved) {
+        setReport(null);
+        setError("No completed assessment found. Please start the HIPAA assessment first.");
+        return;
+      }
+
+      setReport(JSON.parse(saved));
+    } catch (err) {
+      console.error(err);
+      setError("Could not load latest report.");
+    } finally {
+      setScanLoading(false);
+    }
+  };
+
+  if (loading) return <div style={{ color: "white" }}>Loading dashboard...</div>;
 
   return (
-    <div style={{ display: "flex", background: COLORS.bg }}>
-
+    <div style={{ display: "flex", background: COLORS.bg, minHeight: "100vh" }}>
       <Sidebar />
 
-      <div style={{ flex: 1, padding: 30 }}>
+      <div style={{ flex: 1, padding: 30, color: COLORS.text }}>
+        <div style={{ marginBottom: 20 }}>
+          <h1>Compliance Dashboard</h1>
+          <p style={{ color: COLORS.sub }}>
+            Monitor HIPAA compliance, risk exposure, and audit readiness.
+          </p>
+        </div>
 
-        <h1>Compliance Dashboard</h1>
+        <OrganizationSelector
+          currentOrg={currentOrg}
+          setCurrentOrg={setCurrentOrg}
+        />
 
-        {currentOrg && <KPIDashboard orgId={currentOrg.id} />}
-        {currentOrg && <ExecutivePanel orgId={currentOrg.id} />}
+        <div style={{
+          ...card,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center"
+        }}>
+          <div>
+            <h3>Start HIPAA Assessment</h3>
+            <p style={{ color: COLORS.sub }}>
+              Complete the guided HIPAA assessment to generate compliance insights.
+            </p>
+          </div>
+
+          <button
+            onClick={() => nav("/hipaa")}
+            style={{
+              background: COLORS.blue,
+              color: "white",
+              padding: "12px 20px",
+              borderRadius: 8,
+              border: "none",
+              cursor: "pointer",
+              fontWeight: "bold"
+            }}
+          >
+            Start Assessment
+          </button>
+        </div>
+
+        <div style={{
+          ...card,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center"
+        }}>
+          <div>
+            <h3>Latest Assessment Report</h3>
+            <p style={{ color: COLORS.sub }}>
+              Refresh the dashboard using the most recent completed assessment.
+            </p>
+          </div>
+
+          <button
+            onClick={refreshLatestReport}
+            disabled={scanLoading}
+            style={{
+              background: COLORS.blue,
+              color: "white",
+              padding: "12px 20px",
+              borderRadius: 8,
+              border: "none",
+              cursor: "pointer",
+              fontWeight: "bold"
+            }}
+          >
+            {scanLoading ? "Loading..." : "Refresh Report"}
+          </button>
+        </div>
+
+        {error && <p style={{ color: COLORS.red }}>{error}</p>}
+
+        {!report && !scanLoading && (
+          <div style={card}>
+            <h3>No Reports Yet</h3>
+            <p style={{ color: COLORS.sub }}>
+              Start your first HIPAA assessment to generate insights.
+            </p>
+          </div>
+        )}
+
+        {report && (
+          <>
+            <KPIDashboard orgId={currentOrg?.id} data={report} />
+            <ExecutivePanel data={report} />
+
+            <div style={card}>
+              <h3>Report Access</h3>
+
+              {plan === "pro" && report.pdf_url ? (
+                <button onClick={() => window.open(report.pdf_url, "_blank")}>
+                  Download PDF
+                </button>
+              ) : (
+                <p style={{ color: COLORS.sub }}>
+                  PDF reports are available for Pro subscribers.
+                </p>
+              )}
+            </div>
+          </>
+        )}
 
         <div style={card}>
           <h3>Subscription</h3>
-          {subscription?.plan}
+          <p>{subscription?.plan || "Free Plan"}</p>
         </div>
 
         <div style={card}>
-          {/* 🔥 FIXED NAVIGATION */}
           <button onClick={() => nav("/hipaa")}>
-            Start New Assessment
+            Start Manual Assessment
           </button>
         </div>
 
         <div style={card}>
           <TeamManagement />
         </div>
-
       </div>
     </div>
   );
 }
-
-/* =========================
-   ROUTES
-========================= */
-
-function AppWrapper() {
-  const [token, setToken] = useState(localStorage.getItem("token"));
-
-  return (
-    <Router>
-      <Routes>
-
-        {/* PUBLIC */}
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/pricing" element={<PricingPage />} />
-        <Route path="/login" element={<Login setToken={setToken} />} />
-        <Route path="/signup" element={<Signup />} />
-
-        {/* DASHBOARD (PROTECTED) */}
-        <Route path="/dashboard" element={
-          <PrivateRoute>
-            <Dashboard />
-          </PrivateRoute>
-        } />
-
-        {/* 🔥 ASSESSMENT (PUBLIC ENTRY POINT) */}
-        <Route path="/hipaa" element={<HipaaAssessment />} />
-
-        {/* 🔥 OPTIONAL FALLBACK */}
-        <Route path="*" element={<Navigate to="/" />} />
-
-      </Routes>
-    </Router>
-  );
-}
-
-/* =========================
-   PROTECTED ROUTE
-========================= */
-
-function PrivateRoute({ children }) {
-  const token = localStorage.getItem("token");
-  return token ? children : <Navigate to="/login" />;
-}
-
-export default AppWrapper;

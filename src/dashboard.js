@@ -7,10 +7,6 @@ import ExecutivePanel from "../components/ExecutivePanel";
 import TeamManagement from "../components/TeamManagement";
 import OrganizationSelector from "../components/OrganizationSelector";
 
-/* =========================
-   STYLES
-========================= */
-
 const layout = {
   display: "flex",
   minHeight: "100vh",
@@ -38,9 +34,15 @@ const card = {
   boxShadow: "0 6px 20px rgba(0,0,0,0.4)"
 };
 
-/* =========================
-   REPORT PREVIEW
-========================= */
+const buttonPrimary = {
+  background: "#3b82f6",
+  color: "white",
+  padding: "12px 20px",
+  borderRadius: 8,
+  border: "none",
+  fontWeight: "bold",
+  cursor: "pointer"
+};
 
 const ReportPreview = ({ report, onDownload, plan }) => {
   if (!report) return null;
@@ -48,15 +50,14 @@ const ReportPreview = ({ report, onDownload, plan }) => {
   return (
     <div style={card}>
       <h3>Executive Summary</h3>
-
-      <p><strong>Compliance Score:</strong> {report.score}%</p>
-      <p><strong>Risk Level:</strong> {report.risk}</p>
+      <p><strong>Compliance Score:</strong> {report.score ?? 0}%</p>
+      <p><strong>Risk Level:</strong> {report.risk || report.risk_level || "UNKNOWN"}</p>
 
       <p>
         This organization demonstrates a{" "}
         <strong>
-          {report.score >= 85 ? "strong" :
-           report.score >= 60 ? "moderate" : "high-risk"}
+          {(report.score ?? 0) >= 85 ? "strong" :
+           (report.score ?? 0) >= 60 ? "moderate" : "high-risk"}
         </strong>{" "}
         compliance posture.
       </p>
@@ -68,27 +69,23 @@ const ReportPreview = ({ report, onDownload, plan }) => {
           borderLeft: "4px solid #f59e0b",
           background: "rgba(255,255,255,0.03)"
         }}>
-          <strong>{f.issue}</strong>
-          <p style={{ margin: 0 }}>{f.description}</p>
+          <strong>{f.issue || f.title}</strong>
+          <p style={{ margin: 0 }}>{f.description || f.recommendation}</p>
         </div>
       ))}
 
-      {plan === "pro" ? (
+      {plan === "pro" && report.pdf_url ? (
         <button onClick={onDownload} style={{ marginTop: 15 }}>
-          Download Full Report (PDF)
+          Download Full Report PDF
         </button>
       ) : (
         <p style={{ color: "#f59e0b", marginTop: 10 }}>
-          Upgrade to download full reports
+          Upgrade to download PDF reports.
         </p>
       )}
     </div>
   );
 };
-
-/* =========================
-   COMPONENT
-========================= */
 
 function Dashboard() {
   const navigate = useNavigate();
@@ -96,28 +93,24 @@ function Dashboard() {
   const [org, setOrg] = useState(null);
   const [subscription, setSubscription] = useState(null);
   const [history, setHistory] = useState([]);
-
   const [report, setReport] = useState(null);
 
   const [loading, setLoading] = useState(false);
+  const [pageLoading, setPageLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const plan = subscription?.plan || "free";
-
-  /* =========================
-     LOAD INITIAL DATA
-  ========================= */
+  const plan = subscription?.plan || localStorage.getItem("plan") || "free";
 
   useEffect(() => {
     const load = async () => {
       try {
-        const orgRes = await API.get("/org/list");
-        const subRes = await API.get("/subscription/status");
+        const orgRes = await API.get("/org/list").catch(() => ({ data: [] }));
+        const subRes = await API.get("/subscription/status").catch(() => ({ data: null }));
 
         const savedOrgId = localStorage.getItem("org_id");
 
         const currentOrg =
-          orgRes.data?.find(o => String(o.id) === String(savedOrgId)) ||
+          orgRes.data?.find?.(o => String(o.id) === String(savedOrgId)) ||
           orgRes.data?.[0] ||
           null;
 
@@ -125,19 +118,22 @@ function Dashboard() {
         setSubscription(subRes.data);
 
         const saved = localStorage.getItem("latest_report");
-        if (saved) setReport(JSON.parse(saved));
-
+        if (saved) {
+          try {
+            setReport(JSON.parse(saved));
+          } catch {
+            localStorage.removeItem("latest_report");
+          }
+        }
       } catch (err) {
         console.error(err);
+      } finally {
+        setPageLoading(false);
       }
     };
 
     load();
   }, []);
-
-  /* =========================
-     LOAD HISTORY
-  ========================= */
 
   useEffect(() => {
     if (!org?.id) return;
@@ -154,35 +150,23 @@ function Dashboard() {
     loadHistory();
   }, [org]);
 
-  /* =========================
-     RUN SCAN
-  ========================= */
-
   const runScan = async () => {
-    if (!org) return;
-
     setLoading(true);
     setError(null);
 
     try {
       const submitRes = await API.post("/hipaa/submit", {
-        org_id: org.id
+        org_id: org?.id || localStorage.getItem("org_id") || "default",
+        answers: {}
       });
 
-      const scanId = submitRes.data.scan_id;
-
-      const reportRes = await API.post("/reports/generate", {
-        scan_id: scanId
-      });
-
-      const reportData = reportRes.data;
+      const reportData = submitRes.data?.data || submitRes.data;
 
       setReport(reportData);
       localStorage.setItem("latest_report", JSON.stringify(reportData));
-
     } catch (err) {
       console.error(err);
-      setError("Scan failed. Try again.");
+      setError("Scan failed. Please complete the HIPAA assessment instead.");
     } finally {
       setLoading(false);
     }
@@ -193,19 +177,21 @@ function Dashboard() {
     window.open(item.pdf_url, "_blank");
   };
 
-  /* =========================
-     UI
-  ========================= */
+  if (pageLoading) {
+    return (
+      <div style={{ background: "#0f172a", minHeight: "100vh", color: "#e2e8f0", padding: 40 }}>
+        Loading dashboard...
+      </div>
+    );
+  }
 
   return (
     <div style={layout}>
-
-      {/* SIDEBAR */}
       <div style={sidebar}>
         <h2>CyberClinic</h2>
 
-        <p onClick={() => navigate("/dashboard")}>Dashboard</p>
-        <p onClick={() => navigate("/hipaa")}>Assessment</p>
+        <p style={{ cursor: "pointer" }} onClick={() => navigate("/dashboard")}>Dashboard</p>
+        <p style={{ cursor: "pointer" }} onClick={() => navigate("/hipaa")}>Assessment</p>
 
         <button
           onClick={() => {
@@ -217,14 +203,11 @@ function Dashboard() {
         </button>
       </div>
 
-      {/* MAIN */}
       <div style={main}>
-
-        {/* HEADER */}
         <div style={{ marginBottom: 20 }}>
           <h1>Compliance Dashboard</h1>
           <p style={{ color: "#94a3b8" }}>
-            Monitor HIPAA compliance, risk exposure, and audit readiness
+            Monitor HIPAA compliance, risk exposure, and audit readiness.
           </p>
         </div>
 
@@ -233,7 +216,6 @@ function Dashboard() {
           setCurrentOrg={setOrg}
         />
 
-        {/* ACTION BAR */}
         <div style={{
           ...card,
           display: "flex",
@@ -241,42 +223,53 @@ function Dashboard() {
           alignItems: "center"
         }}>
           <div>
-            <h3>Run Compliance Scan</h3>
+            <h3>Start HIPAA Assessment</h3>
             <p style={{ color: "#94a3b8" }}>
-              Generate a real-time HIPAA compliance report
+              Complete the guided assessment to generate compliance insights.
+            </p>
+          </div>
+
+          <button
+            onClick={() => navigate("/hipaa")}
+            style={buttonPrimary}
+          >
+            Start Assessment
+          </button>
+        </div>
+
+        <div style={{
+          ...card,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center"
+        }}>
+          <div>
+            <h3>Use Latest Assessment Data</h3>
+            <p style={{ color: "#94a3b8" }}>
+              Dashboard uses the latest submitted assessment. PDF generation is reserved for Pro users.
             </p>
           </div>
 
           <button
             onClick={runScan}
             disabled={loading}
-            style={{
-              background: "#3b82f6",
-              color: "white",
-              padding: "12px 20px",
-              borderRadius: 8,
-              border: "none",
-              fontWeight: "bold",
-              cursor: "pointer"
-            }}
+            style={buttonPrimary}
           >
-            {loading ? "Running..." : "Run Scan"}
+            {loading ? "Loading..." : "Refresh Latest Report"}
           </button>
         </div>
 
         {error && <p style={{ color: "#ef4444" }}>{error}</p>}
 
-        {/* EMPTY STATE */}
         {!report && !loading && (
           <div style={card}>
             <h3>No Reports Yet</h3>
             <p style={{ color: "#94a3b8" }}>
-              Run your first compliance scan to generate insights.
+              Start your first HIPAA assessment to generate insights.
             </p>
           </div>
         )}
 
-        {/* KPI + EXEC */}
         {report && (
           <>
             <KPIDashboard orgId={org?.id} data={report} />
@@ -284,14 +277,12 @@ function Dashboard() {
           </>
         )}
 
-        {/* PREVIEW */}
         <ReportPreview
           report={report}
           plan={plan}
           onDownload={() => downloadPDF(report)}
         />
 
-        {/* FULL REPORT */}
         {report && (
           <div style={card}>
             <h3>Detailed Report</h3>
@@ -309,8 +300,8 @@ function Dashboard() {
               <>
                 <h4>Findings</h4>
                 {report.findings.map((f, i) => (
-                  <div key={i}>
-                    <strong>{f.issue}</strong> — {f.description}
+                  <div key={i} style={{ marginBottom: 10 }}>
+                    <strong>{f.issue || f.title}</strong> — {f.description || f.recommendation}
                   </div>
                 ))}
               </>
@@ -320,16 +311,26 @@ function Dashboard() {
               <>
                 <h4>Recommended Actions</h4>
                 {report.remediation.map((r, i) => (
-                  <div key={i}>
+                  <div key={i} style={{ marginBottom: 8 }}>
                     • {r.issue} — {r.recommendation}
                   </div>
                 ))}
               </>
             )}
+
+            {report.ai_recommendations && (
+              <>
+                <h4>AI Recommendations</h4>
+                {Array.isArray(report.ai_recommendations) ? (
+                  report.ai_recommendations.map((r, i) => <p key={i}>• {r}</p>)
+                ) : (
+                  <p>{report.ai_recommendations}</p>
+                )}
+              </>
+            )}
           </div>
         )}
 
-        {/* AUDIT TIMELINE */}
         <div style={card}>
           <h3>Audit Timeline</h3>
 
@@ -340,10 +341,10 @@ function Dashboard() {
           )}
 
           {history.map((h, i) => {
-
+            const risk = h.risk || h.risk_level;
             const riskColor =
-              h.risk === "High" ? "#ef4444" :
-              h.risk === "Medium" ? "#f59e0b" :
+              risk === "HIGH" || risk === "High" ? "#ef4444" :
+              risk === "MEDIUM" || risk === "Medium" ? "#f59e0b" :
               "#22c55e";
 
             return (
@@ -354,31 +355,34 @@ function Dashboard() {
                 padding: "12px 0",
                 borderBottom: "1px solid #334155"
               }}>
-
                 <div>
                   <strong>{h.score}%</strong>
                   <span style={{ marginLeft: 10, color: riskColor }}>
-                    {h.risk}
+                    {risk}
                   </span>
 
                   <div style={{
                     fontSize: 12,
                     color: "#94a3b8"
                   }}>
-                    {new Date(h.date).toLocaleString()}
+                    {h.date ? new Date(h.date).toLocaleString() : "Recent"}
                   </div>
                 </div>
 
-                <button onClick={() => downloadPDF(h)}>
-                  View Report
-                </button>
-
+                {h.pdf_url ? (
+                  <button onClick={() => downloadPDF(h)}>
+                    View Report
+                  </button>
+                ) : (
+                  <span style={{ color: "#94a3b8", fontSize: 12 }}>
+                    PDF available on Pro
+                  </span>
+                )}
               </div>
             );
           })}
         </div>
 
-        {/* SUBSCRIPTION */}
         <div style={card}>
           <h3>Subscription</h3>
           <p>{plan}</p>
@@ -388,11 +392,9 @@ function Dashboard() {
           </button>
         </div>
 
-        {/* TEAM */}
         <div style={card}>
           <TeamManagement />
         </div>
-
       </div>
     </div>
   );
