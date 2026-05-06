@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import API from "../api";
+import API from "./api";
 
 function Login({ onLogin }) {
   const navigate = useNavigate();
@@ -49,7 +49,6 @@ function Login({ onLogin }) {
       }
 
       navigate("/dashboard");
-
     } catch (err) {
       console.error("LOGIN ERROR:", err);
 
@@ -59,7 +58,6 @@ function Login({ onLogin }) {
       );
 
       localStorage.removeItem("token");
-
     } finally {
       setLoading(false);
     }
