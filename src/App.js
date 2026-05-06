@@ -1,4 +1,30 @@
-function Dashboard() {
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+
+import API from "./api";
+
+// Only import files you CONFIRMED exist
+import OrganizationSelector from "./components/OrganizationSelector";
+import KPIDashboard from "./components/KPIDashboard";
+import ExecutivePanel from "./components/ExecutivePanel";
+import TeamManagement from "./components/TeamManagement";
+
+const COLORS = {
+  bg: "#0f172a",
+  text: "#e2e8f0",
+  sub: "#94a3b8",
+  blue: "#3b82f6",
+  red: "#ef4444"
+};
+
+const card = {
+  background: "#111827",
+  padding: 20,
+  borderRadius: 10,
+  marginBottom: 20
+};
+
+function App() {
   const nav = useNavigate();
 
   const [currentOrg, setCurrentOrg] = useState(null);
@@ -67,117 +93,89 @@ function Dashboard() {
 
   return (
     <div style={{ display: "flex", background: COLORS.bg, minHeight: "100vh" }}>
-      <Sidebar />
 
+      {/* ✅ BUILT-IN SIDEBAR (NO IMPORT NEEDED) */}
+      <div style={{
+        width: 240,
+        background: "#1e293b",
+        padding: 20,
+        color: "#e2e8f0"
+      }}>
+        <h2>CyberClinic</h2>
+
+        <p style={{ cursor: "pointer" }} onClick={() => nav("/dashboard")}>
+          Dashboard
+        </p>
+
+        <p style={{ cursor: "pointer" }} onClick={() => nav("/hipaa")}>
+          Assessment
+        </p>
+
+        <p style={{ cursor: "pointer" }} onClick={() => nav("/pricing")}>
+          Pricing
+        </p>
+
+        <button
+          onClick={() => {
+            localStorage.clear();
+            window.location.href = "/";
+          }}
+          style={{
+            marginTop: 20,
+            padding: 8,
+            width: "100%",
+            background: "#ef4444",
+            color: "white",
+            border: "none"
+          }}
+        >
+          Logout
+        </button>
+      </div>
+
+      {/* MAIN CONTENT */}
       <div style={{ flex: 1, padding: 30, color: COLORS.text }}>
-        <div style={{ marginBottom: 20 }}>
-          <h1>Compliance Dashboard</h1>
-          <p style={{ color: COLORS.sub }}>
-            Monitor HIPAA compliance, risk exposure, and audit readiness.
-          </p>
-        </div>
+        <h1>Compliance Dashboard</h1>
 
         <OrganizationSelector
           currentOrg={currentOrg}
           setCurrentOrg={setCurrentOrg}
         />
 
-        <div
-          style={{
-            ...card,
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center"
-          }}
-        >
-          <div>
-            <h3>Start HIPAA Assessment</h3>
-            <p style={{ color: COLORS.sub }}>
-              Complete the guided assessment to generate your compliance report.
-            </p>
-          </div>
-
-          <button
-            onClick={() => nav("/hipaa")}
-            style={{
-              background: COLORS.blue,
-              color: "white",
-              padding: "12px 20px",
-              borderRadius: 8,
-              border: "none",
-              cursor: "pointer",
-              fontWeight: "bold"
-            }}
-          >
+        <div style={card}>
+          <h3>Start HIPAA Assessment</h3>
+          <button onClick={() => nav("/hipaa")}>
             Start Assessment
           </button>
         </div>
 
-        <div
-          style={{
-            ...card,
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center"
-          }}
-        >
-          <div>
-            <h3>Latest Assessment Report</h3>
-            <p style={{ color: COLORS.sub }}>
-              Load the most recent HIPAA assessment result saved from the assessment page.
-            </p>
-          </div>
-
-          <button
-            onClick={refreshLatestReport}
-            disabled={scanLoading}
-            style={{
-              background: COLORS.blue,
-              color: "white",
-              padding: "12px 20px",
-              borderRadius: 8,
-              border: "none",
-              cursor: "pointer",
-              fontWeight: "bold"
-            }}
-          >
+        <div style={card}>
+          <h3>Latest Report</h3>
+          <button onClick={refreshLatestReport}>
             {scanLoading ? "Loading..." : "Refresh Report"}
           </button>
         </div>
 
         {error && <p style={{ color: COLORS.red }}>{error}</p>}
 
-        {!report && !scanLoading && (
+        {!report && (
           <div style={card}>
-            <h3>No Reports Yet</h3>
-            <p style={{ color: COLORS.sub }}>
-              Start your first HIPAA assessment to generate insights.
-            </p>
+            <p>No reports yet.</p>
           </div>
         )}
 
         {report && (
           <>
-            <KPIDashboard
-              orgId={currentOrg?.id}
-              data={report}
-            />
-
-            <ExecutivePanel
-              data={report}
-            />
+            <KPIDashboard orgId={currentOrg?.id} data={report} />
+            <ExecutivePanel data={report} />
 
             <div style={card}>
-              <h3>Report Access</h3>
-
               {plan === "pro" && report.pdf_url ? (
-                <button onClick={() => window.open(report.pdf_url, "_blank")}>
+                <button onClick={() => window.open(report.pdf_url)}>
                   Download PDF
                 </button>
               ) : (
-                <p style={{ color: COLORS.sub }}>
-                  PDF reports are available for Pro subscribers.
-                </p>
+                <p>Upgrade to Pro to download reports.</p>
               )}
             </div>
           </>
@@ -186,19 +184,18 @@ function Dashboard() {
         <div style={card}>
           <h3>Subscription</h3>
           <p>{subscription?.plan || "Free Plan"}</p>
-          <button onClick={() => nav("/pricing")}>Upgrade</button>
-        </div>
-
-        <div style={card}>
-          <button onClick={() => nav("/hipaa")}>
-            Start Manual Assessment
+          <button onClick={() => nav("/pricing")}>
+            Upgrade
           </button>
         </div>
 
         <div style={card}>
           <TeamManagement />
         </div>
+
       </div>
     </div>
   );
 }
+
+export default App;
