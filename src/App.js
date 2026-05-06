@@ -21,6 +21,7 @@ function Dashboard() {
         setSubscription(subRes.data || null);
 
         const saved = localStorage.getItem("latest_report");
+
         if (saved) {
           try {
             setReport(JSON.parse(saved));
@@ -29,7 +30,7 @@ function Dashboard() {
           }
         }
       } catch (err) {
-        console.error(err);
+        console.error("Dashboard load error:", err);
       } finally {
         setLoading(false);
       }
@@ -47,20 +48,22 @@ function Dashboard() {
 
       if (!saved) {
         setReport(null);
-        setError("No completed assessment found. Please start the HIPAA assessment first.");
+        setError("No completed assessment found. Please complete the HIPAA assessment first.");
         return;
       }
 
       setReport(JSON.parse(saved));
     } catch (err) {
-      console.error(err);
+      console.error("Refresh report error:", err);
       setError("Could not load latest report.");
     } finally {
       setScanLoading(false);
     }
   };
 
-  if (loading) return <div style={{ color: "white" }}>Loading dashboard...</div>;
+  if (loading) {
+    return <div style={{ color: "white", padding: 40 }}>Loading dashboard...</div>;
+  }
 
   return (
     <div style={{ display: "flex", background: COLORS.bg, minHeight: "100vh" }}>
@@ -79,16 +82,18 @@ function Dashboard() {
           setCurrentOrg={setCurrentOrg}
         />
 
-        <div style={{
-          ...card,
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center"
-        }}>
+        <div
+          style={{
+            ...card,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center"
+          }}
+        >
           <div>
             <h3>Start HIPAA Assessment</h3>
             <p style={{ color: COLORS.sub }}>
-              Complete the guided HIPAA assessment to generate compliance insights.
+              Complete the guided assessment to generate your compliance report.
             </p>
           </div>
 
@@ -108,16 +113,18 @@ function Dashboard() {
           </button>
         </div>
 
-        <div style={{
-          ...card,
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center"
-        }}>
+        <div
+          style={{
+            ...card,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center"
+          }}
+        >
           <div>
             <h3>Latest Assessment Report</h3>
             <p style={{ color: COLORS.sub }}>
-              Refresh the dashboard using the most recent completed assessment.
+              Load the most recent HIPAA assessment result saved from the assessment page.
             </p>
           </div>
 
@@ -151,8 +158,14 @@ function Dashboard() {
 
         {report && (
           <>
-            <KPIDashboard orgId={currentOrg?.id} data={report} />
-            <ExecutivePanel data={report} />
+            <KPIDashboard
+              orgId={currentOrg?.id}
+              data={report}
+            />
+
+            <ExecutivePanel
+              data={report}
+            />
 
             <div style={card}>
               <h3>Report Access</h3>
@@ -173,6 +186,7 @@ function Dashboard() {
         <div style={card}>
           <h3>Subscription</h3>
           <p>{subscription?.plan || "Free Plan"}</p>
+          <button onClick={() => nav("/pricing")}>Upgrade</button>
         </div>
 
         <div style={card}>
