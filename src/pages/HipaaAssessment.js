@@ -84,21 +84,8 @@ function HipaaAssessment() {
     ? Math.round(((step + 1) / categories.length) * 100)
     : 0;
 
-  const upgradeToPro = async () => {
-    try {
-      setError(null);
-
-      const res = await axios.post(
-        `${API}/billing/create-checkout-session?mode=subscription`
-      );
-
-      if (!res.data?.url) throw new Error("Missing Stripe checkout URL");
-
-      window.location.href = res.data.url;
-    } catch (err) {
-      console.error("Upgrade failed:", err);
-      setError("Upgrade failed. Please try again.");
-    }
+  const upgradeToPro = () => {
+    window.location.href = "/pricing";
   };
 
   const submitAssessment = async () => {
