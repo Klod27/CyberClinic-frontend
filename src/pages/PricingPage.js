@@ -1,4 +1,6 @@
-import React from "react";
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import API from "../api";
 
 const COLORS = {
   bg: "#0f172a",
@@ -8,19 +10,53 @@ const COLORS = {
   sub: "#94a3b8",
   blue: "#3b82f6",
   green: "#22c55e",
-  yellow: "#f59e0b"
+  yellow: "#f59e0b",
+  red: "#ef4444"
 };
 
 function PricingPage() {
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+
   const startFree = () => {
     localStorage.setItem("plan", "free");
-    window.location.href = "/hipaa";
+    navigate("/hipaa");
   };
 
-  const upgradeDemo = () => {
-    localStorage.setItem("plan", "pro");
-    alert("Demo Pro access enabled. In production, this button will connect to Stripe checkout.");
-    window.location.href = "/dashboard";
+  // ✅ REAL STRIPE FLOW (FIXED)
+  const upgradeToPro = async () => {
+    const token = localStorage.getItem("token");
+
+    // 🔒 Must be logged in for Stripe
+    if (!token) {
+      alert("Please login before upgrading.");
+      navigate("/login");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const res = await API.post(
+        "/billing/create-checkout-session?mode=subscription"
+      );
+
+      if (res.data?.url) {
+        window.location.href = res.data.url; // 🔥 Stripe redirect
+      } else {
+        throw new Error("No checkout URL returned");
+      }
+
+    } catch (err) {
+      console.error("Stripe Error:", err);
+
+      alert(
+        err.response?.data?.detail ||
+        "Stripe checkout failed. Please try again."
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   const contactSales = () => {
@@ -62,10 +98,11 @@ function PricingPage() {
       <div style={{
         display: "flex",
         justifyContent: "center",
-        alignItems: "stretch",
         flexWrap: "wrap",
         marginTop: 50
       }}>
+
+        {/* FREE */}
         <div style={planCard}>
           <h2>Free</h2>
           <p style={{ color: COLORS.sub }}>Basic assessment access</p>
@@ -94,6 +131,7 @@ function PricingPage() {
           </button>
         </div>
 
+        {/* PRO */}
         <div style={{
           ...planCard,
           border: `2px solid ${COLORS.blue}`,
@@ -105,18 +143,19 @@ function PricingPage() {
             Designed for clinics and healthcare teams
           </p>
 
-          <ul style={{ marginTop: 10 }}>
-            <li>✔ Full compliance scoring dashboard</li>
+          <ul>
+            <li>✔ Full compliance dashboard</li>
             <li>✔ AI recommendations</li>
             <li>✔ PDF audit reports</li>
             <li>✔ Team collaboration</li>
-            <li>✔ Audit timeline</li>
+            <li>✔ Audit tracking</li>
           </ul>
 
           <h3>$99/month</h3>
 
           <button
-            onClick={upgradeDemo}
+            onClick={upgradeToPro}
+            disabled={loading}
             style={{
               marginTop: 20,
               padding: "10px 16px",
@@ -127,7 +166,7 @@ function PricingPage() {
               cursor: "pointer"
             }}
           >
-            Enable Pro Demo
+            {loading ? "Redirecting..." : "Upgrade to Pro"}
           </button>
 
           <p style={{
@@ -135,14 +174,16 @@ function PricingPage() {
             fontSize: 12,
             color: COLORS.yellow
           }}>
-            Stripe checkout can be re-enabled after login and billing are finalized.
+            Secure Stripe checkout enabled
           </p>
         </div>
 
+        {/* ENTERPRISE */}
         <div style={planCard}>
           <h2>Enterprise</h2>
+
           <p style={{ color: COLORS.sub }}>
-            Multi-clinic, polyclinic, hospital, and network deployments
+            Multi-clinic and hospital deployments
           </p>
 
           <ul>
@@ -169,11 +210,12 @@ function PricingPage() {
             Contact Sales
           </button>
         </div>
+
       </div>
 
       <div style={{ textAlign: "center", marginTop: 30 }}>
         <button
-          onClick={() => window.location.href = "/"}
+          onClick={() => navigate("/")}
           style={{
             padding: "10px 16px",
             background: "transparent",
