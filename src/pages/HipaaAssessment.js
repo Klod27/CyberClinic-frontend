@@ -1,8 +1,13 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip,
-  ResponsiveContainer, Cell
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  Cell
 } from "recharts";
 
 const API =
@@ -18,17 +23,35 @@ function HipaaAssessment() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
 
-  const plan = localStorage.getItem("plan") || "free";
-  const isPro = plan === "pro";
-  const FREE_LIMIT = 10;
+  // ✅ Backend-driven subscription state
+  const [plan, setPlan] = useState("free");
+  const [isPro, setIsPro] = useState(false);
 
   useEffect(() => {
     const loadQuestions = async () => {
       try {
-        const res = await axios.get(`${API}/hipaa/questions`);
-        let q = res.data?.questions || res.data;
+        const token = localStorage.getItem("token");
 
-        if (!Array.isArray(q)) throw new Error("Invalid question format");
+        const res = await axios.get(`${API}/hipaa/questions`, {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
+
+        const data = res.data;
+
+        // ✅ Trust backend entitlement logic
+        setPlan(data.plan || "free");
+        setIsPro(
+          data.plan === "pro" ||
+          data.plan === "enterprise"
+        );
+
+        let q = data.questions || [];
+
+        if (!Array.isArray(q)) {
+          throw new Error("Invalid question format");
+        }
 
         q = q.map(item => ({
           id: item.id,
@@ -40,13 +63,28 @@ function HipaaAssessment() {
         }));
 
         setQuestions(q);
+
       } catch (err) {
         console.error("Question load failed:", err);
-        setError("Could not load full assessment questions. Showing fallback questions.");
 
+        setError(
+          "Could not load assessment questions. Showing fallback questions."
+        );
+
+        // fallback questions
         setQuestions([
-          { id: "1", question: "Do you enforce MFA?", category: "Technical", weight: 10 },
-          { id: "2", question: "Encrypt PHI?", category: "Technical", weight: 10 }
+          {
+            id: "1",
+            question: "Do you enforce MFA?",
+            category: "Technical",
+            weight: 10
+          },
+          {
+            id: "2",
+            question: "Encrypt PHI?",
+            category: "Technical",
+            weight: 10
+          }
         ]);
       } finally {
         setLoading(false);
@@ -56,13 +94,17 @@ function HipaaAssessment() {
     loadQuestions();
   }, []);
 
-  const visibleQuestions = isPro
-    ? questions
-    : questions.slice(0, FREE_LIMIT);
+  // ✅ Backend already controls access
+  const visibleQuestions = questions;
 
-  const categories = [...new Set(visibleQuestions.map(q => q.category || "General"))];
+  const categories = [
+    ...new Set(
+      visibleQuestions.map(q => q.category || "General")
+    )
+  ];
 
   const currentCategory = categories[step] || "";
+
   const currentQuestions = visibleQuestions.filter(
     q => (q.category || "General") === currentCategory
   );
@@ -98,17 +140,33 @@ function HipaaAssessment() {
     setError(null);
 
     try {
-      const orgId = localStorage.getItem("org_id") || "default";
+      const token = localStorage.getItem("token");
+      const orgId =
+        localStorage.getItem("org_id") || "default";
 
-      const submitRes = await axios.post(`${API}/hipaa/submit`, {
-        org_id: orgId,
-        answers
-      });
+      const submitRes = await axios.post(
+        `${API}/hipaa/submit`,
+        {
+          org_id: orgId,
+          answers
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
 
-      const reportData = submitRes.data?.data || submitRes.data;
+      const reportData =
+        submitRes.data?.data || submitRes.data;
 
-      localStorage.setItem("latest_report", JSON.stringify(reportData));
+      localStorage.setItem(
+        "latest_report",
+        JSON.stringify(reportData)
+      );
+
       setResult(reportData);
+
     } catch (err) {
       console.error("Submission failed:", err);
       setError("Submission failed.");
@@ -119,8 +177,14 @@ function HipaaAssessment() {
 
   const generateInsights = () => {
     const values = Object.values(answers);
-    const noCount = values.filter(a => a.answer === "No").length;
-    const partialCount = values.filter(a => a.answer === "Partial").length;
+
+    const noCount = values.filter(
+      a => a.answer === "No"
+    ).length;
+
+    const partialCount = values.filter(
+      a => a.answer === "Partial"
+    ).length;
 
     if (!values.length) {
       return "Complete the assessment to generate AI insights.";
@@ -143,55 +207,96 @@ function HipaaAssessment() {
     return "#dc2626";
   };
 
-  if (loading) return <div style={{ padding: 40 }}>Loading...</div>;
+  if (loading) {
+    return (
+      <div style={{ padding: 40 }}>
+        Loading...
+      </div>
+    );
+  }
+
+  // ============================
+  // RESULTS VIEW
+  // ============================
 
   if (result?.category_scores) {
-    const chartData = Object.entries(result.category_scores)
-      .map(([k, v]) => ({ name: k, score: v }));
+
+    const chartData = Object.entries(
+      result.category_scores
+    ).map(([k, v]) => ({
+      name: k,
+      score: v
+    }));
 
     return (
       <div style={{ padding: 40 }}>
-        <h1>HIPAA Compliance Report</h1>
-        <h2>Score: {result.score}%</h2>
-        <p><strong>Risk Level:</strong> {result.risk || result.risk_level}</p>
 
-        <div style={{
-          marginTop: 20,
-          padding: 15,
-          background: "#111827",
-          color: "white",
-          borderRadius: 10
-        }}>
+        <h1>HIPAA Compliance Report</h1>
+
+        <h2>
+          Score: {result.score}%
+        </h2>
+
+        <p>
+          <strong>Risk Level:</strong>{" "}
+          {result.risk || result.risk_level}
+        </p>
+
+        <div
+          style={{
+            marginTop: 20,
+            padding: 15,
+            background: "#111827",
+            color: "white",
+            borderRadius: 10
+          }}
+        >
           <h3>AI Insights</h3>
+
           <p>{generateInsights()}</p>
         </div>
 
-        <ResponsiveContainer width="100%" height={300}>
+        <ResponsiveContainer
+          width="100%"
+          height={300}
+        >
           <BarChart data={chartData}>
             <XAxis dataKey="name" />
+
             <YAxis domain={[0, 100]} />
+
             <Tooltip />
+
             <Bar dataKey="score">
               {chartData.map((e, i) => (
-                <Cell key={i} fill={getColor(e.score)} />
+                <Cell
+                  key={i}
+                  fill={getColor(e.score)}
+                />
               ))}
             </Bar>
           </BarChart>
         </ResponsiveContainer>
 
+        {/* FREE PLAN LOCK */}
         {!isPro && (
-          <div style={{
-            marginTop: 20,
-            padding: 20,
-            border: "2px dashed #f59e0b",
-            borderRadius: 10,
-            background: "#1e293b",
-            color: "white"
-          }}>
+          <div
+            style={{
+              marginTop: 20,
+              padding: 20,
+              border: "2px dashed #f59e0b",
+              borderRadius: 10,
+              background: "#1e293b",
+              color: "white"
+            }}
+          >
             <h3>Upgrade Required</h3>
+
             <p>
-              Unlock the full HIPAA assessment, detailed remediation guidance,
-              PDF reports, and audit-ready documentation.
+              Unlock the full HIPAA assessment,
+              detailed remediation guidance,
+              PDF reports, and audit-ready
+              documentation.
             </p>
 
             <button onClick={upgradeToPro}>
@@ -200,14 +305,23 @@ function HipaaAssessment() {
           </div>
         )}
 
+        {/* PRO DOWNLOAD */}
         {isPro && result.pdf_url && (
-          <button onClick={() => window.open(result.pdf_url, "_blank")}>
+          <button
+            onClick={() =>
+              window.open(result.pdf_url, "_blank")
+            }
+          >
             Download Report
           </button>
         )}
 
         <div style={{ marginTop: 20 }}>
-          <button onClick={() => window.location.href = "/dashboard"}>
+          <button
+            onClick={() =>
+              (window.location.href = "/dashboard")
+            }
+          >
             Go to Dashboard
           </button>
 
@@ -226,66 +340,128 @@ function HipaaAssessment() {
     );
   }
 
+  // ============================
+  // ASSESSMENT VIEW
+  // ============================
+
   return (
     <div style={{ padding: 40 }}>
+
       <h1>HIPAA Assessment</h1>
 
-      {!isPro && (
+      {/* PLAN STATUS */}
+      {plan === "free" && (
         <p style={{ color: "#f59e0b" }}>
-          Free plan: limited to {FREE_LIMIT} questions
+          Free plan: limited assessment access
+        </p>
+      )}
+
+      {plan === "pro" && (
+        <p style={{ color: "#22c55e" }}>
+          Pro plan unlocked: full HIPAA assessment enabled
         </p>
       )}
 
       <p>
-        Step {step + 1} of {categories.length || 1} • {answeredCount} answered
+        Step {step + 1} of{" "}
+        {categories.length || 1} •{" "}
+        {answeredCount} answered
       </p>
 
-      <div style={{ background: "#ddd", height: 10 }}>
-        <div style={{
-          width: `${progress}%`,
-          background: "#2563eb",
+      <div
+        style={{
+          background: "#ddd",
           height: 10
-        }} />
+        }}
+      >
+        <div
+          style={{
+            width: `${progress}%`,
+            background: "#2563eb",
+            height: 10
+          }}
+        />
       </div>
 
       <h2>{currentCategory}</h2>
 
       {currentQuestions.map(q => (
-        <div key={q.id} style={{ marginBottom: 12 }}>
+        <div
+          key={q.id}
+          style={{ marginBottom: 12 }}
+        >
           <strong>{q.question}</strong>
+
           <br />
+
           <select
             value={answers[q.id]?.answer || ""}
-            onChange={(e) => handleAnswer(q.id, e.target.value, q)}
+            onChange={(e) =>
+              handleAnswer(
+                q.id,
+                e.target.value,
+                q
+              )
+            }
           >
-            <option value="">Select</option>
-            <option value="Yes">Yes</option>
-            <option value="Partial">Partial</option>
-            <option value="No">No</option>
+            <option value="">
+              Select
+            </option>
+
+            <option value="Yes">
+              Yes
+            </option>
+
+            <option value="Partial">
+              Partial
+            </option>
+
+            <option value="No">
+              No
+            </option>
           </select>
         </div>
       ))}
 
-      {error && <p style={{ color: "red" }}>{error}</p>}
+      {error && (
+        <p style={{ color: "red" }}>
+          {error}
+        </p>
+      )}
 
       <div style={{ marginTop: 20 }}>
+
         {step > 0 && (
-          <button onClick={() => setStep(step - 1)}>
+          <button
+            onClick={() =>
+              setStep(step - 1)
+            }
+          >
             Previous
           </button>
         )}
 
         {step < categories.length - 1 && (
-          <button onClick={() => setStep(step + 1)}>
+          <button
+            onClick={() =>
+              setStep(step + 1)
+            }
+          >
             Next
           </button>
         )}
 
         {step === categories.length - 1 && (
-          <button onClick={submitAssessment} disabled={submitting}>
-            {submitting ? "Submitting..." : "Submit Assessment"}
+          <button
+            onClick={submitAssessment}
+            disabled={submitting}
+          >
+            {submitting
+              ? "Submitting..."
+              : "Submit Assessment"}
           </button>
         )}
+
       </div>
     </div>
   );

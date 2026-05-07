@@ -18,7 +18,7 @@ console.log("🌐 FINAL API BASE URL:", BASE_URL);
 
 const API = axios.create({
   baseURL: BASE_URL,
-  timeout: 30000,
+  timeout: 60000,
   headers: {
     "Content-Type": "application/json",
   },
@@ -53,22 +53,7 @@ API.interceptors.response.use(
     const status = error?.response?.status;
     const url = error?.config?.url || "";
 
-    const publicRoutes = [
-      "/",
-      "/login",
-      "/signup",
-      "/pricing",
-      "/hipaa",
-      "/dashboard",
-    ];
-
-    const publicApiCalls = [
-      "/hipaa/questions",
-      "/hipaa/submit",
-    ];
-
-    const isPublicPage = publicRoutes.includes(window.location.pathname);
-    const isPublicApiCall = publicApiCalls.some(path => url.includes(path));
+    console.error("❌ API Error:", error?.response || error);
 
     if (status === 401) {
       console.warn("🔒 Unauthorized:", url);
@@ -76,26 +61,26 @@ API.interceptors.response.use(
       const isBillingCall = url.includes("/billing/create-checkout-session");
 
       if (isBillingCall) {
-        window.location.href = "/pricing";
+        alert("Please log in again before upgrading.");
+        window.location.href = "/login";
         return Promise.reject(error);
       }
 
       localStorage.removeItem("token");
 
-      if (!isPublicPage && !isPublicApiCall) {
+      if (
+        window.location.pathname !== "/login" &&
+        window.location.pathname !== "/signup" &&
+        window.location.pathname !== "/pricing" &&
+        window.location.pathname !== "/hipaa"
+      ) {
         window.location.href = "/login";
       }
     }
 
     if (error.code === "ECONNABORTED") {
-      alert("⏳ Server is waking up. Try again in a few seconds.");
+      console.warn("⏳ Backend request timed out.");
     }
-
-    if (!error.response) {
-      alert("🌐 Network error. Backend unreachable.");
-    }
-
-    console.error("❌ API Error:", error?.response || error);
 
     return Promise.reject(error);
   }
@@ -110,12 +95,12 @@ export const setAuthToken = (token) => {
 };
 
 export const runComplianceScan = () => {
-  console.warn("runComplianceScan is deprecated. Use the HIPAA assessment flow instead.");
+  console.warn("runComplianceScan is deprecated. Use HIPAA assessment flow instead.");
   return Promise.resolve({
     data: {
       status: "deprecated",
-      message: "Use /hipaa assessment instead."
-    }
+      message: "Use /hipaa assessment instead.",
+    },
   });
 };
 
@@ -123,16 +108,14 @@ export const getSubscriptionStatus = () => {
   return API.get("/subscription/status");
 };
 
-export const createCheckoutSession = () => {
-  console.warn("Checkout is protected. Redirecting to pricing for demo flow.");
-  window.location.href = "/pricing";
+export const createCheckoutSession = (mode = "subscription", reportId = null) => {
+  let url = `/billing/create-checkout-session?mode=${mode}`;
 
-  return Promise.resolve({
-    data: {
-      status: "redirected",
-      url: "/pricing"
-    }
-  });
+  if (reportId) {
+    url += `&report_id=${reportId}`;
+  }
+
+  return API.post(url);
 };
 
 export default API;

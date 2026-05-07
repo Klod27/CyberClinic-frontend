@@ -38,8 +38,14 @@ function PricingPage() {
 
     try {
       const res = await API.post(
-        "/billing/create-checkout-session?mode=subscription"
-      );
+  "/billing/create-checkout-session?mode=subscription",
+  {},
+  {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  }
+);
 
       if (res.data?.url) {
         window.location.href = res.data.url; // 🔥 Stripe redirect

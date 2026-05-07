@@ -1,178 +1,542 @@
 import React, { useEffect, useState } from "react";
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
+import axios from "axios";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  ResponsiveContainer
+} from "recharts";
 
-const COLORS = ["#22c55e", "#facc15", "#f97316", "#dc2626"];
+const COLORS = [
+  "#22c55e",
+  "#facc15",
+  "#f97316",
+  "#dc2626"
+];
+
+const API =
+  process.env.REACT_APP_API_URL ||
+  "https://cyberclinic-backend.onrender.com";
 
 function ComplianceDashboard({ assessmentId }) {
+
   const [data, setData] = useState(null);
-  const [paid, setPaid] = useState(false);
   const [error, setError] = useState(null);
 
-  const plan = localStorage.getItem("plan") || "free";
-  const isPro = plan === "pro" || paid;
+  // ✅ backend-driven subscription state
+  const [plan, setPlan] = useState("free");
+  const [isPro, setIsPro] = useState(false);
+
+  // ============================
+  // LOAD DASHBOARD DATA
+  // ============================
 
   useEffect(() => {
-    const loadData = () => {
+
+    const loadDashboard = async () => {
+
       try {
-        const saved = localStorage.getItem("latest_report");
 
-        if (saved) {
-          const report = JSON.parse(saved);
+        const token = localStorage.getItem("token");
 
-          setData({
-            assessment: {
-              id: report.assessment_id || assessmentId || "latest",
-              score: report.score || 0,
-              risk_level: report.risk || report.risk_level || "UNKNOWN",
-              category_scores: report.category_scores || {}
-            },
-            findings: report.findings || [],
-            remediation: report.remediation || [],
-            ai_recommendations: report.ai_recommendations || []
-          });
+        // ============================
+        // LOAD SUBSCRIPTION STATUS
+        // ============================
+
+        try {
+
+          const subRes = await axios.get(
+            `${API}/subscription/status`,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`
+              }
+            }
+          );
+
+          const subscriptionPlan =
+            subRes.data?.plan || "free";
+
+          setPlan(subscriptionPlan);
+
+          setIsPro(
+            subscriptionPlan === "pro" ||
+            subscriptionPlan === "enterprise"
+          );
+
+          // optional persistence
+          localStorage.setItem(
+            "plan",
+            subscriptionPlan
+          );
+
+        } catch (subErr) {
+
+          console.error(
+            "Subscription load failed:",
+            subErr
+          );
+
+          setPlan("free");
+          setIsPro(false);
+        }
+
+        // ============================
+        // LOAD REPORT DATA
+        // ============================
+
+        const saved =
+          localStorage.getItem("latest_report");
+
+        if (!saved) {
+
+          setError(
+            "No assessment found. Please complete the HIPAA assessment first."
+          );
 
           return;
         }
 
-        setError("No assessment found. Please complete the HIPAA assessment first.");
+        const report = JSON.parse(saved);
+
+        setData({
+          assessment: {
+            id:
+              report.assessment_id ||
+              assessmentId ||
+              "latest",
+
+            score: report.score || 0,
+
+            risk_level:
+              report.risk ||
+              report.risk_level ||
+              "UNKNOWN",
+
+            category_scores:
+              report.category_scores || {}
+          },
+
+          findings: report.findings || [],
+
+          remediation:
+            report.remediation || [],
+
+          ai_recommendations:
+            report.ai_recommendations || [],
+
+          pdf_url:
+            report.pdf_url || null
+        });
+
       } catch (err) {
+
         console.error(err);
-        setError("Could not load assessment data.");
+
+        setError(
+          "Could not load dashboard data."
+        );
       }
     };
 
-    loadData();
+    loadDashboard();
+
   }, [assessmentId]);
 
+  // ============================
+  // ERROR STATE
+  // ============================
+
   if (error) {
+
     return (
-      <div style={{ padding: 40, background: "#0b0f19", color: "white" }}>
-        <h1>CyberClinic Compliance Dashboard</h1>
-        <p style={{ color: "#f87171" }}>{error}</p>
-        <button onClick={() => window.location.href = "/hipaa"}>
+      <div
+        style={{
+          padding: 40,
+          background: "#0b0f19",
+          color: "white",
+          minHeight: "100vh"
+        }}
+      >
+
+        <h1>
+          CyberClinic Compliance Dashboard
+        </h1>
+
+        <p style={{ color: "#f87171" }}>
+          {error}
+        </p>
+
+        <button
+          onClick={() =>
+            (window.location.href = "/hipaa")
+          }
+        >
           Start HIPAA Assessment
         </button>
       </div>
     );
   }
 
-  if (!data) return <p>Loading...</p>;
+  // ============================
+  // LOADING STATE
+  // ============================
 
-  const categoryData = Object.entries(data.assessment.category_scores || {}).map(
-    ([key, value]) => ({
-      name: key,
-      value
-    })
-  );
+  if (!data) {
+
+    return (
+      <div
+        style={{
+          padding: 40,
+          color: "white",
+          background: "#0b0f19",
+          minHeight: "100vh"
+        }}
+      >
+        Loading dashboard...
+      </div>
+    );
+  }
+
+  // ============================
+  // CHART DATA
+  // ============================
+
+  const categoryData = Object.entries(
+    data.assessment.category_scores || {}
+  ).map(([key, value]) => ({
+    name: key,
+    value
+  }));
+
+  // ============================
+  // FREE VS PRO FINDINGS
+  // ============================
 
   const visibleFindings = isPro
     ? data.findings
     : (data.findings || []).slice(0, 3);
 
-  const handlePayment = async () => {
+  // ============================
+  // PAYMENT FLOW
+  // ============================
+
+  const handlePayment = () => {
+
     window.location.href = "/pricing";
   };
 
+  // ============================
+  // DOWNLOAD REPORT
+  // ============================
+
   const downloadReport = () => {
+
     if (!isPro) {
-      alert("PDF reports are available for Pro subscribers.");
+
+      alert(
+        "PDF reports are available for Pro subscribers."
+      );
+
       return;
     }
 
-    alert("PDF generation will be available after Pro report generation is enabled.");
+    if (data.pdf_url) {
+
+      window.open(data.pdf_url, "_blank");
+
+      return;
+    }
+
+    alert(
+      "PDF report generation is not yet available for this assessment."
+    );
   };
 
+  // ============================
+  // MAIN UI
+  // ============================
+
   return (
-    <div style={{ padding: 40, background: "#0b0f19", color: "white", minHeight: "100vh" }}>
+    <div
+      style={{
+        padding: 40,
+        background: "#0b0f19",
+        color: "white",
+        minHeight: "100vh"
+      }}
+    >
 
-      <h1>CyberClinic Compliance Dashboard</h1>
+      {/* HEADER */}
 
-      <h2>Score: {data.assessment.score}%</h2>
+      <h1>
+        CyberClinic Compliance Dashboard
+      </h1>
+
+      {/* SUBSCRIPTION STATUS */}
+
+      <div
+        style={{
+          marginTop: 10,
+          marginBottom: 20
+        }}
+      >
+
+        {plan === "free" && (
+          <div
+            style={{
+              color: "#facc15",
+              fontWeight: "bold"
+            }}
+          >
+            Free Plan
+          </div>
+        )}
+
+        {plan === "pro" && (
+          <div
+            style={{
+              color: "#22c55e",
+              fontWeight: "bold"
+            }}
+          >
+            Pro Subscription Active
+          </div>
+        )}
+
+      </div>
+
+      {/* SCORE */}
+
+      <h2>
+        Score: {data.assessment.score}%
+      </h2>
 
       <h3 style={{ color: "#facc15" }}>
-        Risk Level: {data.assessment.risk_level}
+        Risk Level:
+        {" "}
+        {data.assessment.risk_level}
       </h3>
 
-      <div style={{ width: 400, height: 300 }}>
+      {/* CHART */}
+
+      <div
+        style={{
+          width: 400,
+          height: 300
+        }}
+      >
+
         <ResponsiveContainer>
+
           <PieChart>
-            <Pie data={categoryData} dataKey="value">
+
+            <Pie
+              data={categoryData}
+              dataKey="value"
+            >
+
               {categoryData.map((_, i) => (
-                <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                <Cell
+                  key={i}
+                  fill={
+                    COLORS[i % COLORS.length]
+                  }
+                />
               ))}
+
             </Pie>
+
             <Tooltip />
+
           </PieChart>
+
         </ResponsiveContainer>
+
       </div>
 
       <hr style={{ margin: "30px 0" }} />
 
-      <h2>Top Risk Findings</h2>
+      {/* FINDINGS */}
+
+      <h2>
+        Top Risk Findings
+      </h2>
 
       {visibleFindings.length === 0 && (
-        <p>No major findings available for this assessment.</p>
+        <p>
+          No major findings available for
+          this assessment.
+        </p>
       )}
 
       {visibleFindings.map((f, i) => (
-        <div key={i} style={{
-          background: "#111827",
-          padding: 20,
-          marginBottom: 15,
-          borderRadius: 10
-        }}>
-          <h3>{f.title || f.issue}</h3>
-          <p><strong>Risk:</strong> {f.risk_level || f.severity}</p>
-          <p><strong>Impact:</strong> {f.impact || "Potential compliance exposure."}</p>
+
+        <div
+          key={i}
+          style={{
+            background: "#111827",
+            padding: 20,
+            marginBottom: 15,
+            borderRadius: 10
+          }}
+        >
+
+          <h3>
+            {f.title || f.issue}
+          </h3>
+
+          <p>
+            <strong>Risk:</strong>
+            {" "}
+            {f.risk_level || f.severity}
+          </p>
+
+          <p>
+            <strong>Impact:</strong>
+            {" "}
+            {f.impact ||
+              "Potential compliance exposure."}
+          </p>
+
           <p style={{ color: "#f87171" }}>
-            <strong>Why this matters:</strong>{" "}
+            <strong>
+              Why this matters:
+            </strong>
+            {" "}
             {f.business_impact ||
               "Failure to address this issue could result in regulatory risk, operational disruption, and loss of patient trust."}
           </p>
+
         </div>
       ))}
 
+      {/* AI RECOMMENDATIONS */}
+
       {data.ai_recommendations?.length > 0 && (
+
         <>
-          <h2>AI Recommendations</h2>
-          {Array.isArray(data.ai_recommendations)
-            ? data.ai_recommendations.map((r, i) => <p key={i}>• {r}</p>)
-            : <p>{data.ai_recommendations}</p>}
+          <h2>
+            AI Recommendations
+          </h2>
+
+          {Array.isArray(
+            data.ai_recommendations
+          )
+
+            ? data.ai_recommendations.map(
+                (r, i) => (
+                  <p key={i}>
+                    • {r}
+                  </p>
+                )
+              )
+
+            : (
+              <p>
+                {data.ai_recommendations}
+              </p>
+            )}
         </>
       )}
 
+      {/* FREE PAYWALL */}
+
       {!isPro && (
-        <div style={{
-          marginTop: 20,
-          padding: 20,
-          background: "#020617",
-          borderRadius: 10,
-          textAlign: "center",
-          border: "1px solid #facc15"
-        }}>
-          <h2>🔒 Full Report Locked</h2>
-          <p>Unlock full findings, recommendations, PDF reports, and audit-ready documentation.</p>
-          <button onClick={handlePayment}>
+
+        <div
+          style={{
+            marginTop: 20,
+            padding: 20,
+            background: "#020617",
+            borderRadius: 10,
+            textAlign: "center",
+            border: "1px solid #facc15"
+          }}
+        >
+
+          <h2>
+            🔒 Full Report Locked
+          </h2>
+
+          <p>
+            Unlock:
+          </p>
+
+          <ul
+            style={{
+              textAlign: "left",
+              maxWidth: 500,
+              margin: "0 auto"
+            }}
+          >
+            <li>
+              Full assessment findings
+            </li>
+
+            <li>
+              AI remediation guidance
+            </li>
+
+            <li>
+              PDF audit reports
+            </li>
+
+            <li>
+              Audit-ready documentation
+            </li>
+
+            <li>
+              Advanced compliance insights
+            </li>
+          </ul>
+
+          <button
+            onClick={handlePayment}
+            style={{
+              marginTop: 20
+            }}
+          >
             Upgrade to Pro
           </button>
+
         </div>
       )}
 
+      {/* ACTION BUTTONS */}
+
       <div style={{ marginTop: 30 }}>
-        <button onClick={() => window.location.href = "/hipaa"}>
+
+        <button
+          onClick={() =>
+            (window.location.href = "/hipaa")
+          }
+        >
           Start New Assessment
         </button>
 
-        <button onClick={() => window.location.href = "/dashboard"} style={{ marginLeft: 10 }}>
+        <button
+          onClick={() =>
+            (window.location.href = "/dashboard")
+          }
+          style={{ marginLeft: 10 }}
+        >
           Go to Dashboard
         </button>
 
         {isPro && (
-          <button onClick={downloadReport} style={{ marginLeft: 10 }}>
+
+          <button
+            onClick={downloadReport}
+            style={{ marginLeft: 10 }}
+          >
             Download PDF
           </button>
         )}
+
       </div>
+
     </div>
   );
 }
