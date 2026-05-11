@@ -10,24 +10,25 @@ const COLORS = {
   sub: "#94a3b8",
   blue: "#3b82f6",
   green: "#22c55e",
-  yellow: "#f59e0b",
-  red: "#ef4444"
+  yellow: "#f59e0b"
 };
 
 function PricingPage() {
+
   const navigate = useNavigate();
+
   const [loading, setLoading] = useState(false);
 
+  // ✅ FREE PLAN
   const startFree = () => {
-    localStorage.setItem("plan", "free");
     navigate("/hipaa");
   };
 
-  // ✅ REAL STRIPE FLOW (FIXED)
+  // ✅ STRIPE PRO FLOW
   const upgradeToPro = async () => {
+
     const token = localStorage.getItem("token");
 
-    // 🔒 Must be logged in for Stripe
     if (!token) {
       alert("Please login before upgrading.");
       navigate("/login");
@@ -37,35 +38,49 @@ function PricingPage() {
     setLoading(true);
 
     try {
+
       const res = await API.post(
-  "/billing/create-checkout-session?mode=subscription",
-  {},
-  {
-    headers: {
-      Authorization: `Bearer ${token}`
-    }
-  }
-);
+        "/billing/create-checkout-session",
+        {
+          mode: "subscription",
+          plan: "pro"
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+
+      console.log("CHECKOUT RESPONSE:", res.data);
 
       if (res.data?.url) {
-        window.location.href = res.data.url; // 🔥 Stripe redirect
+
+        window.location.href = res.data.url;
+
       } else {
-        throw new Error("No checkout URL returned");
+
+        throw new Error(
+          "No Stripe checkout URL returned."
+        );
       }
 
     } catch (err) {
+
       console.error("Stripe Error:", err);
 
       alert(
         err.response?.data?.detail ||
-        "Stripe checkout failed. Please try again."
+        "Stripe checkout failed."
       );
+
     } finally {
       setLoading(false);
     }
   };
 
   const contactSales = () => {
+
     window.location.href =
       "mailto:info@cyberclinicsaas.com?subject=CyberClinic Enterprise Inquiry";
   };
@@ -81,12 +96,14 @@ function PricingPage() {
   };
 
   return (
+
     <div style={{
       background: COLORS.bg,
       color: COLORS.text,
       minHeight: "100vh",
       padding: 40
     }}>
+
       <h1 style={{ textAlign: "center" }}>
         Pricing Plans
       </h1>
@@ -97,8 +114,9 @@ function PricingPage() {
         maxWidth: 760,
         margin: "12px auto 0"
       }}>
-        Start with a free HIPAA readiness assessment. Upgrade to unlock full
-        dashboard access, PDF reporting, AI recommendations, and team workflows.
+        Upgrade to unlock PDF reports,
+        dashboards, AI remediation,
+        and collaboration features.
       </p>
 
       <div style={{
@@ -110,16 +128,16 @@ function PricingPage() {
 
         {/* FREE */}
         <div style={planCard}>
+
           <h2>Free</h2>
-          <p style={{ color: COLORS.sub }}>Basic assessment access</p>
 
           <ul>
             <li>✔ Limited HIPAA assessment</li>
-            <li>✔ Basic score preview</li>
+            <li>✔ Basic compliance score</li>
             <li>✔ Starter AI insights</li>
           </ul>
 
-          <h3>$0 / month</h3>
+          <h3>$0/month</h3>
 
           <button
             onClick={startFree}
@@ -133,27 +151,24 @@ function PricingPage() {
               cursor: "pointer"
             }}
           >
-            Start Free Assessment
+            Start Free
           </button>
+
         </div>
 
         {/* PRO */}
         <div style={{
           ...planCard,
-          border: `2px solid ${COLORS.blue}`,
-          boxShadow: "0 10px 30px rgba(59,130,246,0.25)"
+          border: `2px solid ${COLORS.blue}`
         }}>
+
           <h2>Pro</h2>
 
-          <p style={{ color: COLORS.sub }}>
-            Designed for clinics and healthcare teams
-          </p>
-
           <ul>
-            <li>✔ Full compliance dashboard</li>
-            <li>✔ AI recommendations</li>
-            <li>✔ PDF audit reports</li>
-            <li>✔ Team collaboration</li>
+            <li>✔ Full dashboard</li>
+            <li>✔ PDF reports</li>
+            <li>✔ AI remediation</li>
+            <li>✔ Team management</li>
             <li>✔ Audit tracking</li>
           </ul>
 
@@ -172,7 +187,9 @@ function PricingPage() {
               cursor: "pointer"
             }}
           >
-            {loading ? "Redirecting..." : "Upgrade to Pro"}
+            {loading
+              ? "Redirecting..."
+              : "Upgrade to Pro"}
           </button>
 
           <p style={{
@@ -182,21 +199,19 @@ function PricingPage() {
           }}>
             Secure Stripe checkout enabled
           </p>
+
         </div>
 
         {/* ENTERPRISE */}
         <div style={planCard}>
+
           <h2>Enterprise</h2>
 
-          <p style={{ color: COLORS.sub }}>
-            Multi-clinic and hospital deployments
-          </p>
-
           <ul>
+            <li>✔ Multi-site management</li>
+            <li>✔ Compliance consulting</li>
             <li>✔ Dedicated support</li>
             <li>✔ Custom integrations</li>
-            <li>✔ Compliance consulting</li>
-            <li>✔ Multi-site reporting</li>
           </ul>
 
           <h3>Custom</h3>
@@ -215,11 +230,16 @@ function PricingPage() {
           >
             Contact Sales
           </button>
+
         </div>
 
       </div>
 
-      <div style={{ textAlign: "center", marginTop: 30 }}>
+      <div style={{
+        textAlign: "center",
+        marginTop: 30
+      }}>
+
         <button
           onClick={() => navigate("/")}
           style={{
@@ -233,7 +253,9 @@ function PricingPage() {
         >
           Back to Home
         </button>
+
       </div>
+
     </div>
   );
 }
