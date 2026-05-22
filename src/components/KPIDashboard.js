@@ -33,8 +33,10 @@ const COLORS = {
 
 const getRiskColor = (risk) => {
   if (!risk) return COLORS.sub;
-  if (risk.toLowerCase() === "low") return COLORS.green;
-  if (risk.toLowerCase() === "medium") return COLORS.yellow;
+  if (risk.toLowerCase() === "low")
+    return COLORS.green;
+  if (risk.toLowerCase() === "medium")
+    return COLORS.yellow;
   return COLORS.red;
 };
 
@@ -43,43 +45,56 @@ const getRiskColor = (risk) => {
 ========================= */
 
 function KPIDashboard({ orgId, data }) {
-
   const [trend, setTrend] = useState([]);
-  const [latest, setLatest] = useState(null);
-  const [categoryData, setCategoryData] = useState([]);
-  const [ready, setReady] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const [latest, setLatest] =
+    useState(null);
+  const [categoryData, setCategoryData] =
+    useState([]);
+  const [ready, setReady] =
+    useState(false);
+  const [mounted, setMounted] =
+    useState(false);
 
   /* =========================
      MOUNT FIX
   ========================= */
+
   useEffect(() => {
     setMounted(true);
   }, []);
 
   /* =========================
-     LOAD TREND (KEEP FEATURE)
+     LOAD TREND
   ========================= */
+
   useEffect(() => {
     if (!orgId) return;
 
     API.get(`/analytics/trend/${orgId}`)
-      .then(res => {
-        const dataArr = Array.isArray(res.data) ? res.data : [];
+      .then((res) => {
+        const dataArr = Array.isArray(
+          res.data
+        )
+          ? res.data
+          : [];
 
         setTrend(dataArr);
 
         if (dataArr.length > 0) {
-          const last = dataArr[dataArr.length - 1];
+          const last =
+            dataArr[dataArr.length - 1];
+
           setLatest(last);
 
           if (last.category_scores) {
-            const formatted = Object.entries(last.category_scores).map(
-              ([key, value]) => ({
+            const formatted =
+              Object.entries(
+                last.category_scores
+              ).map(([key, value]) => ({
                 name: key,
                 value: value
-              })
-            );
+              }));
+
             setCategoryData(formatted);
           }
         }
@@ -93,55 +108,71 @@ function KPIDashboard({ orgId, data }) {
   }, [orgId]);
 
   /* =========================
-     🔥 FALLBACK TO REPORT (CRITICAL FIX)
+     FALLBACK REPORT
   ========================= */
+
   useEffect(() => {
     if (!data) return;
 
-    // If no trend yet, build minimal one
-    if (!trend.length) {
+    // ===================================
+    // FIXED ESLINT ISSUE
+    // ===================================
+
+    if (trend.length === 0) {
       setTrend([
         {
-          date: new Date().toLocaleDateString(),
+          date:
+            new Date().toLocaleDateString(),
           score: data.score
         }
       ]);
     }
 
-    // Always sync latest with report
     setLatest({
       score: data.score,
       risk: data.risk
     });
 
-    // Build category data from report
     if (data.category_scores) {
-      const formatted = Object.entries(data.category_scores).map(
-        ([key, value]) => ({
+      const formatted =
+        Object.entries(
+          data.category_scores
+        ).map(([key, value]) => ({
           name: key,
           value: value
-        })
-      );
+        }));
+
       setCategoryData(formatted);
     }
 
-  }, [data]);
+  }, [data, trend.length]);
 
   /* =========================
-     KPI CARDS
+     KPI CARD
   ========================= */
 
-  const KPI = ({ title, value, color }) => (
-    <div style={{
-      flex: 1,
-      background: COLORS.card,
-      padding: 20,
-      borderRadius: 12,
-      border: `1px solid ${COLORS.border}`,
-      marginRight: 15
-    }}>
-      <p style={{ color: COLORS.sub }}>{title}</p>
-      <h2 style={{ color }}>{value}</h2>
+  const KPI = ({
+    title,
+    value,
+    color
+  }) => (
+    <div
+      style={{
+        flex: 1,
+        background: COLORS.card,
+        padding: 20,
+        borderRadius: 12,
+        border: `1px solid ${COLORS.border}`,
+        marginRight: 15
+      }}
+    >
+      <p style={{ color: COLORS.sub }}>
+        {title}
+      </p>
+
+      <h2 style={{ color }}>
+        {value}
+      </h2>
     </div>
   );
 
@@ -151,7 +182,12 @@ function KPIDashboard({ orgId, data }) {
 
   if (!ready || !mounted) {
     return (
-      <div style={{ color: COLORS.sub, padding: 20 }}>
+      <div
+        style={{
+          color: COLORS.sub,
+          padding: 20
+        }}
+      >
         Loading analytics...
       </div>
     );
@@ -161,18 +197,33 @@ function KPIDashboard({ orgId, data }) {
     <div style={{ marginBottom: 30 }}>
 
       {/* KPI ROW */}
-      <div style={{ display: "flex", marginBottom: 25 }}>
 
+      <div
+        style={{
+          display: "flex",
+          marginBottom: 25
+        }}
+      >
         <KPI
           title="Compliance Score"
-          value={latest ? `${latest.score}%` : "--"}
+          value={
+            latest
+              ? `${latest.score}%`
+              : "--"
+          }
           color={COLORS.green}
         />
 
         <KPI
           title="Risk Level"
-          value={latest ? latest.risk : "--"}
-          color={getRiskColor(latest?.risk)}
+          value={
+            latest
+              ? latest.risk
+              : "--"
+          }
+          color={getRiskColor(
+            latest?.risk
+          )}
         />
 
         <KPI
@@ -180,27 +231,37 @@ function KPIDashboard({ orgId, data }) {
           value={trend.length}
           color={COLORS.blue}
         />
-
       </div>
 
       {/* TREND */}
-      <div style={{
-        background: COLORS.card,
-        padding: 20,
-        borderRadius: 12,
-        border: `1px solid ${COLORS.border}`,
-        marginBottom: 25,
-        minHeight: 260
-      }}>
 
+      <div
+        style={{
+          background: COLORS.card,
+          padding: 20,
+          borderRadius: 12,
+          border: `1px solid ${COLORS.border}`,
+          marginBottom: 25,
+          minHeight: 260
+        }}
+      >
         <h3>Compliance Trend</h3>
 
         {trend.length > 0 ? (
-          <ResponsiveContainer width="100%" height={250}>
+          <ResponsiveContainer
+            width="100%"
+            height={250}
+          >
             <LineChart data={trend}>
-              <XAxis dataKey="date" stroke="#94a3b8" />
+              <XAxis
+                dataKey="date"
+                stroke="#94a3b8"
+              />
+
               <YAxis stroke="#94a3b8" />
+
               <Tooltip />
+
               <Line
                 type="monotone"
                 dataKey="score"
@@ -212,28 +273,44 @@ function KPIDashboard({ orgId, data }) {
             </LineChart>
           </ResponsiveContainer>
         ) : (
-          <p style={{ color: COLORS.sub }}>No trend data yet</p>
+          <p
+            style={{
+              color: COLORS.sub
+            }}
+          >
+            No trend data yet
+          </p>
         )}
-
       </div>
 
       {/* CATEGORY */}
-      <div style={{
-        background: COLORS.card,
-        padding: 20,
-        borderRadius: 12,
-        border: `1px solid ${COLORS.border}`,
-        minHeight: 260
-      }}>
 
+      <div
+        style={{
+          background: COLORS.card,
+          padding: 20,
+          borderRadius: 12,
+          border: `1px solid ${COLORS.border}`,
+          minHeight: 260
+        }}
+      >
         <h3>Risk Breakdown</h3>
 
         {categoryData.length > 0 ? (
-          <ResponsiveContainer width="100%" height={250}>
+          <ResponsiveContainer
+            width="100%"
+            height={250}
+          >
             <BarChart data={categoryData}>
-              <XAxis dataKey="name" stroke="#94a3b8" />
+              <XAxis
+                dataKey="name"
+                stroke="#94a3b8"
+              />
+
               <YAxis stroke="#94a3b8" />
+
               <Tooltip />
+
               <Bar
                 dataKey="value"
                 fill={COLORS.blue}
@@ -242,11 +319,15 @@ function KPIDashboard({ orgId, data }) {
             </BarChart>
           </ResponsiveContainer>
         ) : (
-          <p style={{ color: COLORS.sub }}>No category data yet</p>
+          <p
+            style={{
+              color: COLORS.sub
+            }}
+          >
+            No category data yet
+          </p>
         )}
-
       </div>
-
     </div>
   );
 }
