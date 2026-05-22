@@ -16,9 +16,9 @@ const API =
 
 function HipaaAssessment() {
 
-  // ============================
+  // ======================================
   // STATE
-  // ============================
+  // ======================================
 
   const [questions, setQuestions] = useState([]);
   const [answers, setAnswers] = useState({});
@@ -30,12 +30,12 @@ function HipaaAssessment() {
 
   const [error, setError] = useState(null);
 
-  const [plan, setPlan] = useState("free");
+  const [plan, setPlan] = useState(null);
   const [isPro, setIsPro] = useState(false);
 
-  // ============================
+  // ======================================
   // HELPERS
-  // ============================
+  // ======================================
 
   const getToken = () => {
     return (
@@ -53,9 +53,9 @@ function HipaaAssessment() {
     );
   };
 
-  // ============================
-  // LOAD QUESTIONS
-  // ============================
+  // ======================================
+  // LOAD QUESTIONS + SUBSCRIPTION
+  // ======================================
 
   useEffect(() => {
 
@@ -64,6 +64,7 @@ function HipaaAssessment() {
       try {
 
         setLoading(true);
+        setError(null);
 
         const token = getToken();
 
@@ -73,28 +74,53 @@ function HipaaAssessment() {
           throw new Error("Missing auth token");
         }
 
-        const res = await axios.get(
-          `${API}/hipaa/questions`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`
+        // ======================================
+        // LOAD QUESTIONS + SUBSCRIPTION
+        // ======================================
+
+        const [questionRes, subRes] = await Promise.all([
+
+          axios.get(
+            `${API}/hipaa/questions`,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`
+              }
             }
-          }
-        );
+          ),
+
+          axios.get(
+            `${API}/subscription/status`,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`
+              }
+            }
+          )
+
+        ]);
 
         console.log(
           "HIPAA QUESTIONS RESPONSE:",
-          res.data
+          questionRes.data
         );
 
-        const data = res.data;
+        console.log(
+          "SUBSCRIPTION STATUS:",
+          subRes.data
+        );
 
-        // ============================
-        // SUBSCRIPTION STATUS
-        // ============================
+        // ======================================
+        // FORCE SUBSCRIPTION FROM ENDPOINT
+        // ======================================
 
         const currentPlan =
-          data.plan || "free";
+          subRes?.data?.plan || "free";
+
+        console.log(
+          "FINAL PLAN:",
+          currentPlan
+        );
 
         setPlan(currentPlan);
 
@@ -104,9 +130,11 @@ function HipaaAssessment() {
 
         setIsPro(proAccess);
 
-        // ============================
+        // ======================================
         // QUESTIONS
-        // ============================
+        // ======================================
+
+        const data = questionRes.data;
 
         let q = data.questions || [];
 
@@ -130,8 +158,6 @@ function HipaaAssessment() {
 
         setQuestions(q);
 
-        setError(null);
-
       } catch (err) {
 
         console.error(
@@ -150,7 +176,7 @@ function HipaaAssessment() {
           "Authentication or subscription validation failed."
         );
 
-        // fallback questions ONLY if backend unreachable
+        // FALLBACK QUESTIONS
         setQuestions([
           {
             id: "fallback1",
@@ -169,17 +195,20 @@ function HipaaAssessment() {
         ]);
 
       } finally {
+
         setLoading(false);
+
       }
+
     };
 
     loadQuestions();
 
   }, []);
 
-  // ============================
+  // ======================================
   // QUESTIONS
-  // ============================
+  // ======================================
 
   const visibleQuestions = questions;
 
@@ -201,9 +230,9 @@ function HipaaAssessment() {
         currentCategory
     );
 
-  // ============================
+  // ======================================
   // ANSWERS
-  // ============================
+  // ======================================
 
   const handleAnswer = (
     id,
@@ -234,9 +263,9 @@ function HipaaAssessment() {
         )
       : 0;
 
-  // ============================
+  // ======================================
   // SUBMIT
-  // ============================
+  // ======================================
 
   const submitAssessment =
     async () => {
@@ -312,13 +341,16 @@ function HipaaAssessment() {
         );
 
       } finally {
+
         setSubmitting(false);
+
       }
+
     };
 
-  // ============================
-  // INSIGHTS
-  // ============================
+  // ======================================
+  // AI INSIGHTS
+  // ======================================
 
   const generateInsights =
     () => {
@@ -367,9 +399,9 @@ function HipaaAssessment() {
     return "#dc2626";
   };
 
-  // ============================
+  // ======================================
   // LOADING
-  // ============================
+  // ======================================
 
   if (loading) {
     return (
@@ -379,9 +411,9 @@ function HipaaAssessment() {
     );
   }
 
-  // ============================
+  // ======================================
   // RESULTS VIEW
-  // ============================
+  // ======================================
 
   if (result?.category_scores) {
 
@@ -461,8 +493,6 @@ function HipaaAssessment() {
           </BarChart>
         </ResponsiveContainer>
 
-        {/* FREE LOCK */}
-
         {!isPro && (
 
           <div
@@ -499,8 +529,6 @@ function HipaaAssessment() {
           </div>
         )}
 
-        {/* PRO DOWNLOAD */}
-
         {isPro &&
           result.pdf_url && (
 
@@ -520,9 +548,9 @@ function HipaaAssessment() {
     );
   }
 
-  // ============================
+  // ======================================
   // MAIN VIEW
-  // ============================
+  // ======================================
 
   return (
 
