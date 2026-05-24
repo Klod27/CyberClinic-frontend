@@ -30,25 +30,54 @@ function HipaaAssessment() {
 
   const [error, setError] = useState(null);
 
-  const [plan, setPlan] = useState(null);
+  const [plan, setPlan] = useState("free");
   const [isPro, setIsPro] = useState(false);
 
   // ======================================
-  // HELPERS
+  // TOKEN HELPER
   // ======================================
 
   const getToken = () => {
-    return (
+
+    const token =
       localStorage.getItem("access_token") ||
       localStorage.getItem("token") ||
-      ""
+      sessionStorage.getItem("access_token") ||
+      sessionStorage.getItem("token");
+
+    console.log(
+      "TOKEN FROM STORAGE:",
+      token
     );
+
+    if (
+      token &&
+      typeof token === "string"
+    ) {
+      return token
+        .replace(/"/g, "")
+        .trim();
+    }
+
+    return null;
   };
 
+  // ======================================
+  // ORG HELPER
+  // ======================================
+
   const getOrgId = () => {
+
     return (
-      localStorage.getItem("organization_id") ||
-      localStorage.getItem("org_id") ||
+      localStorage.getItem(
+        "organization_id"
+      ) ||
+      localStorage.getItem(
+        "org_id"
+      ) ||
+      sessionStorage.getItem(
+        "organization_id"
+      ) ||
       ""
     );
   };
@@ -68,37 +97,66 @@ function HipaaAssessment() {
 
         const token = getToken();
 
-        console.log("TOKEN:", token);
+        console.log(
+          "TOKEN:",
+          token
+        );
+
+        // ======================================
+        // AUTH VALIDATION
+        // ======================================
 
         if (!token) {
-          throw new Error("Missing auth token");
+
+          console.error(
+            "AUTH FAILURE: Missing token"
+          );
+
+          setError(
+            "Authentication failed. Please login again."
+          );
+
+          setLoading(false);
+
+          return;
         }
 
         // ======================================
-        // LOAD QUESTIONS + SUBSCRIPTION
+        // REQUESTS
         // ======================================
 
-        const [questionRes, subRes] = await Promise.all([
+        const [questionRes, subRes] =
+          await Promise.all([
 
-          axios.get(
-            `${API}/hipaa/questions`,
-            {
-              headers: {
-                Authorization: `Bearer ${token}`
+            axios.get(
+              `${API}/hipaa/questions`,
+              {
+                headers: {
+                  Authorization:
+                    `Bearer ${token}`,
+                  "Content-Type":
+                    "application/json"
+                }
               }
-            }
-          ),
+            ),
 
-          axios.get(
-            `${API}/subscription/status`,
-            {
-              headers: {
-                Authorization: `Bearer ${token}`
+            axios.get(
+              `${API}/subscription/status`,
+              {
+                headers: {
+                  Authorization:
+                    `Bearer ${token}`,
+                  "Content-Type":
+                    "application/json"
+                }
               }
-            }
-          )
+            )
 
-        ]);
+          ]);
+
+        // ======================================
+        // DEBUGGING
+        // ======================================
 
         console.log(
           "HIPAA QUESTIONS RESPONSE:",
@@ -106,12 +164,16 @@ function HipaaAssessment() {
         );
 
         console.log(
-          "SUBSCRIPTION STATUS:",
-          subRes.data
+          "RAW SUBSCRIPTION RESPONSE:",
+          JSON.stringify(
+            subRes.data,
+            null,
+            2
+          )
         );
 
         // ======================================
-        // FORCE SUBSCRIPTION FROM ENDPOINT
+        // PLAN
         // ======================================
 
         const currentPlan =
@@ -124,21 +186,42 @@ function HipaaAssessment() {
 
         setPlan(currentPlan);
 
-        const proAccess =
-          currentPlan === "pro" ||
-          currentPlan === "enterprise";
+        // ======================================
+        // FORCE PRO MODE
+        // ======================================
 
-        setIsPro(proAccess);
+        if (
+          currentPlan === "pro" ||
+          currentPlan === "enterprise"
+        ) {
+
+          console.log(
+            "PRO ACCESS ENABLED"
+          );
+
+          setIsPro(true);
+
+        } else {
+
+          console.log(
+            "FREE ACCESS ENABLED"
+          );
+
+          setIsPro(false);
+        }
 
         // ======================================
         // QUESTIONS
         // ======================================
 
-        const data = questionRes.data;
+        const data =
+          questionRes.data;
 
-        let q = data.questions || [];
+        let q =
+          data.questions || [];
 
         if (!Array.isArray(q)) {
+
           throw new Error(
             "Invalid questions format"
           );
@@ -146,14 +229,19 @@ function HipaaAssessment() {
 
         q = q.map(item => ({
           id: item.id,
-          question: item.question,
+          question:
+            item.question,
           category:
-            item.category || "General",
-          weight: item.weight || 5,
+            item.category ||
+            "General",
+          weight:
+            item.weight || 5,
           severity:
-            item.severity || "Medium",
+            item.severity ||
+            "Medium",
           hipaa_reference:
-            item.hipaa_reference || ""
+            item.hipaa_reference ||
+            ""
         }));
 
         setQuestions(q);
@@ -166,6 +254,7 @@ function HipaaAssessment() {
         );
 
         if (err.response) {
+
           console.error(
             "SERVER RESPONSE:",
             err.response.data
@@ -176,20 +265,25 @@ function HipaaAssessment() {
           "Authentication or subscription validation failed."
         );
 
+        // ======================================
         // FALLBACK QUESTIONS
+        // ======================================
+
         setQuestions([
           {
             id: "fallback1",
             question:
               "Do you enforce MFA?",
-            category: "Technical",
+            category:
+              "Technical",
             weight: 10
           },
           {
             id: "fallback2",
             question:
               "Do you encrypt PHI?",
-            category: "Technical",
+            category:
+              "Technical",
             weight: 10
           }
         ]);
@@ -197,7 +291,6 @@ function HipaaAssessment() {
       } finally {
 
         setLoading(false);
-
       }
 
     };
@@ -210,12 +303,15 @@ function HipaaAssessment() {
   // QUESTIONS
   // ======================================
 
-  const visibleQuestions = questions;
+  const visibleQuestions =
+    questions;
 
   const categories = [
     ...new Set(
       visibleQuestions.map(
-        q => q.category || "General"
+        q =>
+          q.category ||
+          "General"
       )
     )
   ];
@@ -226,7 +322,8 @@ function HipaaAssessment() {
   const currentQuestions =
     visibleQuestions.filter(
       q =>
-        (q.category || "General") ===
+        (q.category ||
+          "General") ===
         currentCategory
     );
 
@@ -246,13 +343,15 @@ function HipaaAssessment() {
         answer: value,
         weight: q.weight,
         category:
-          q.category || "General"
+          q.category ||
+          "General"
       }
     }));
   };
 
   const answeredCount =
-    Object.keys(answers).length;
+    Object.keys(answers)
+      .length;
 
   const progress =
     categories.length > 0
@@ -271,11 +370,14 @@ function HipaaAssessment() {
     async () => {
 
       if (
-        !Object.keys(answers).length
+        !Object.keys(answers)
+          .length
       ) {
+
         alert(
           "Please answer at least one question."
         );
+
         return;
       }
 
@@ -283,9 +385,11 @@ function HipaaAssessment() {
 
         setSubmitting(true);
 
-        const token = getToken();
+        const token =
+          getToken();
 
-        const orgId = getOrgId();
+        const orgId =
+          getOrgId();
 
         console.log(
           "Submitting with org:",
@@ -302,7 +406,9 @@ function HipaaAssessment() {
             {
               headers: {
                 Authorization:
-                  `Bearer ${token}`
+                  `Bearer ${token}`,
+                "Content-Type":
+                  "application/json"
               }
             }
           );
@@ -313,15 +419,20 @@ function HipaaAssessment() {
         );
 
         const reportData =
-          submitRes.data?.data ||
+          submitRes.data
+            ?.data ||
           submitRes.data;
 
         localStorage.setItem(
           "latest_report",
-          JSON.stringify(reportData)
+          JSON.stringify(
+            reportData
+          )
         );
 
-        setResult(reportData);
+        setResult(
+          reportData
+        );
 
       } catch (err) {
 
@@ -331,6 +442,7 @@ function HipaaAssessment() {
         );
 
         if (err.response) {
+
           console.error(
             err.response.data
           );
@@ -343,7 +455,6 @@ function HipaaAssessment() {
       } finally {
 
         setSubmitting(false);
-
       }
 
     };
@@ -356,23 +467,31 @@ function HipaaAssessment() {
     () => {
 
       const values =
-        Object.values(answers);
+        Object.values(
+          answers
+        );
 
       const noCount =
         values.filter(
-          a => a.answer === "No"
+          a =>
+            a.answer ===
+            "No"
         ).length;
 
       const partialCount =
         values.filter(
-          a => a.answer === "Partial"
+          a =>
+            a.answer ===
+            "Partial"
         ).length;
 
       if (!values.length) {
+
         return "Complete the assessment to generate AI insights.";
       }
 
       if (noCount >= 5) {
+
         return "Significant compliance gaps detected.";
       }
 
@@ -380,13 +499,16 @@ function HipaaAssessment() {
         noCount >= 2 ||
         partialCount >= 3
       ) {
+
         return "Moderate compliance risk detected.";
       }
 
       return "Strong compliance posture detected.";
     };
 
-  const getColor = (v = 0) => {
+  const getColor = (
+    v = 0
+  ) => {
 
     if (v >= 85) {
       return "#16a34a";
@@ -404,146 +526,14 @@ function HipaaAssessment() {
   // ======================================
 
   if (loading) {
+
     return (
-      <div style={{ padding: 40 }}>
+      <div
+        style={{
+          padding: 40
+        }}
+      >
         Loading HIPAA Assessment...
-      </div>
-    );
-  }
-
-  // ======================================
-  // RESULTS VIEW
-  // ======================================
-
-  if (result?.category_scores) {
-
-    const chartData =
-      Object.entries(
-        result.category_scores
-      ).map(([k, v]) => ({
-        name: k,
-        score: v
-      }));
-
-    return (
-
-      <div style={{ padding: 40 }}>
-
-        <h1>
-          HIPAA Compliance Report
-        </h1>
-
-        <h2>
-          Score: {result.score}%
-        </h2>
-
-        <p>
-          <strong>
-            Risk Level:
-          </strong>{" "}
-          {result.risk ||
-            result.risk_level}
-        </p>
-
-        <div
-          style={{
-            marginTop: 20,
-            padding: 20,
-            background: "#111827",
-            color: "white",
-            borderRadius: 10
-          }}
-        >
-          <h3>AI Insights</h3>
-
-          <p>
-            {generateInsights()}
-          </p>
-        </div>
-
-        <ResponsiveContainer
-          width="100%"
-          height={300}
-        >
-          <BarChart data={chartData}>
-
-            <XAxis dataKey="name" />
-
-            <YAxis
-              domain={[0, 100]}
-            />
-
-            <Tooltip />
-
-            <Bar dataKey="score">
-
-              {chartData.map(
-                (e, i) => (
-                  <Cell
-                    key={i}
-                    fill={getColor(
-                      e.score
-                    )}
-                  />
-                )
-              )}
-
-            </Bar>
-
-          </BarChart>
-        </ResponsiveContainer>
-
-        {!isPro && (
-
-          <div
-            style={{
-              marginTop: 20,
-              padding: 20,
-              border:
-                "2px dashed #f59e0b",
-              borderRadius: 10,
-              background: "#1e293b",
-              color: "white"
-            }}
-          >
-
-            <h3>
-              Upgrade Required
-            </h3>
-
-            <p>
-              Upgrade to unlock
-              full reports and
-              remediation guidance.
-            </p>
-
-            <button
-              onClick={() =>
-                window.location.href =
-                  "/pricing"
-              }
-            >
-              Upgrade to Pro
-            </button>
-
-          </div>
-        )}
-
-        {isPro &&
-          result.pdf_url && (
-
-            <button
-              onClick={() =>
-                window.open(
-                  result.pdf_url,
-                  "_blank"
-                )
-              }
-            >
-              Download Report
-            </button>
-          )}
-
       </div>
     );
   }
@@ -554,28 +544,50 @@ function HipaaAssessment() {
 
   return (
 
-    <div style={{ padding: 40 }}>
+    <div
+      style={{
+        padding: 40
+      }}
+    >
 
       <h1>
         HIPAA Assessment
       </h1>
 
-      {/* PLAN STATUS */}
-
       {plan === "free" && (
-        <p style={{
-          color: "#f59e0b"
-        }}>
-          Free plan: limited assessment access
+
+        <p
+          style={{
+            color:
+              "#f59e0b"
+          }}
+        >
+          Free plan:
+          limited assessment access
         </p>
       )}
 
       {isPro && (
-        <p style={{
-          color: "#22c55e"
-        }}>
+
+        <p
+          style={{
+            color:
+              "#22c55e"
+          }}
+        >
           Pro plan active:
           full assessment unlocked
+        </p>
+      )}
+
+      {error && (
+
+        <p
+          style={{
+            color: "red"
+          }}
+        >
+          {error}
         </p>
       )}
 
@@ -586,99 +598,96 @@ function HipaaAssessment() {
         {answeredCount} answered
       </p>
 
-      {/* PROGRESS */}
-
       <div
         style={{
-          background: "#ddd",
+          background:
+            "#ddd",
           height: 10
         }}
       >
+
         <div
           style={{
-            width: `${progress}%`,
-            background: "#2563eb",
+            width:
+              `${progress}%`,
+            background:
+              "#2563eb",
             height: 10
           }}
         />
+
       </div>
 
       <h2>
         {currentCategory}
       </h2>
 
-      {/* QUESTIONS */}
+      {currentQuestions.map(
+        q => (
 
-      {currentQuestions.map(q => (
-
-        <div
-          key={q.id}
-          style={{
-            marginBottom: 12
-          }}
-        >
-
-          <strong>
-            {q.question}
-          </strong>
-
-          <br />
-
-          <select
-            value={
-              answers[q.id]
-                ?.answer || ""
-            }
-            onChange={(e) =>
-              handleAnswer(
-                q.id,
-                e.target.value,
-                q
-              )
-            }
+          <div
+            key={q.id}
+            style={{
+              marginBottom: 12
+            }}
           >
 
-            <option value="">
-              Select
-            </option>
+            <strong>
+              {q.question}
+            </strong>
 
-            <option value="Yes">
-              Yes
-            </option>
+            <br />
 
-            <option value="Partial">
-              Partial
-            </option>
+            <select
+              value={
+                answers[q.id]
+                  ?.answer ||
+                ""
+              }
+              onChange={e =>
+                handleAnswer(
+                  q.id,
+                  e.target.value,
+                  q
+                )
+              }
+            >
 
-            <option value="No">
-              No
-            </option>
+              <option value="">
+                Select
+              </option>
 
-          </select>
+              <option value="Yes">
+                Yes
+              </option>
 
-        </div>
-      ))}
+              <option value="Partial">
+                Partial
+              </option>
 
-      {/* ERROR */}
+              <option value="No">
+                No
+              </option>
 
-      {error && (
-        <p style={{
-          color: "red"
-        }}>
-          {error}
-        </p>
+            </select>
+
+          </div>
+        )
       )}
 
-      {/* NAVIGATION */}
-
-      <div style={{
-        marginTop: 20
-      }}>
+      <div
+        style={{
+          marginTop: 20
+        }}
+      >
 
         {step > 0 && (
+
           <button
             onClick={() =>
-              setStep(step - 1)
+              setStep(
+                step - 1
+              )
             }
           >
             Previous
@@ -686,10 +695,14 @@ function HipaaAssessment() {
         )}
 
         {step <
-          categories.length - 1 && (
+          categories.length -
+            1 && (
+
           <button
             onClick={() =>
-              setStep(step + 1)
+              setStep(
+                step + 1
+              )
             }
           >
             Next
@@ -697,12 +710,16 @@ function HipaaAssessment() {
         )}
 
         {step ===
-          categories.length - 1 && (
+          categories.length -
+            1 && (
+
           <button
             onClick={
               submitAssessment
             }
-            disabled={submitting}
+            disabled={
+              submitting
+            }
           >
             {submitting
               ? "Submitting..."
