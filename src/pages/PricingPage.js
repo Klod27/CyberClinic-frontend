@@ -14,19 +14,17 @@ const COLORS = {
 };
 
 function PricingPage() {
-
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(false);
 
-  // ✅ FREE PLAN
-  const startFree = () => {
+  // DEMO ACCESS
+  const startDemo = () => {
     navigate("/hipaa");
   };
 
-  // ✅ STRIPE PRO FLOW
+  // STRIPE PRO FLOW
   const upgradeToPro = async () => {
-
     const token = localStorage.getItem("token");
 
     if (!token) {
@@ -38,7 +36,6 @@ function PricingPage() {
     setLoading(true);
 
     try {
-
       const res = await API.post(
         "/billing/create-checkout-session",
         {
@@ -55,32 +52,25 @@ function PricingPage() {
       console.log("CHECKOUT RESPONSE:", res.data);
 
       if (res.data?.url) {
-
         window.location.href = res.data.url;
-
       } else {
-
         throw new Error(
           "No Stripe checkout URL returned."
         );
       }
-
     } catch (err) {
-
       console.error("Stripe Error:", err);
 
       alert(
         err.response?.data?.detail ||
         "Stripe checkout failed."
       );
-
     } finally {
       setLoading(false);
     }
   };
 
   const contactSales = () => {
-
     window.location.href =
       "mailto:info@cyberclinicsaas.com?subject=CyberClinic Enterprise Inquiry";
   };
@@ -96,51 +86,57 @@ function PricingPage() {
   };
 
   return (
-
-    <div style={{
-      background: COLORS.bg,
-      color: COLORS.text,
-      minHeight: "100vh",
-      padding: 40
-    }}>
-
+    <div
+      style={{
+        background: COLORS.bg,
+        color: COLORS.text,
+        minHeight: "100vh",
+        padding: 40
+      }}
+    >
       <h1 style={{ textAlign: "center" }}>
         Pricing Plans
       </h1>
 
-      <p style={{
-        textAlign: "center",
-        color: COLORS.sub,
-        maxWidth: 760,
-        margin: "12px auto 0"
-      }}>
+      <p
+        style={{
+          textAlign: "center",
+          color: COLORS.sub,
+          maxWidth: 760,
+          margin: "12px auto 0"
+        }}
+      >
         Upgrade to unlock PDF reports,
         dashboards, AI remediation,
+        audit documentation,
         and collaboration features.
       </p>
 
-      <div style={{
-        display: "flex",
-        justifyContent: "center",
-        flexWrap: "wrap",
-        marginTop: 50
-      }}>
-
-        {/* FREE */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          flexWrap: "wrap",
+          marginTop: 50
+        }}
+      >
+        {/* DEMO */}
         <div style={planCard}>
-
-          <h2>Free</h2>
+          <h2>Demo</h2>
 
           <ul>
             <li>✔ Limited HIPAA assessment</li>
-            <li>✔ Basic compliance score</li>
-            <li>✔ Starter AI insights</li>
+            <li>✔ Preview compliance dashboard</li>
+            <li>✔ Sample AI recommendations</li>
+            <li>✔ Limited findings visibility</li>
+            <li>✖ No PDF reports</li>
+            <li>✖ No team management</li>
           </ul>
 
-          <h3>$0/month</h3>
+          <h3>Demo Access</h3>
 
           <button
-            onClick={startFree}
+            onClick={startDemo}
             style={{
               marginTop: 20,
               padding: "10px 16px",
@@ -151,25 +147,27 @@ function PricingPage() {
               cursor: "pointer"
             }}
           >
-            Start Free
+            Start Demo
           </button>
-
         </div>
 
         {/* PRO */}
-        <div style={{
-          ...planCard,
-          border: `2px solid ${COLORS.blue}`
-        }}>
-
+        <div
+          style={{
+            ...planCard,
+            border: `2px solid ${COLORS.blue}`
+          }}
+        >
           <h2>Pro</h2>
 
           <ul>
-            <li>✔ Full dashboard</li>
-            <li>✔ PDF reports</li>
-            <li>✔ AI remediation</li>
+            <li>✔ Unlimited HIPAA assessments</li>
+            <li>✔ Full compliance dashboard</li>
+            <li>✔ AI remediation guidance</li>
+            <li>✔ PDF audit reports</li>
             <li>✔ Team management</li>
             <li>✔ Audit tracking</li>
+            <li>✔ Compliance trend monitoring</li>
           </ul>
 
           <h3>$99/month</h3>
@@ -192,29 +190,31 @@ function PricingPage() {
               : "Upgrade to Pro"}
           </button>
 
-          <p style={{
-            marginTop: 12,
-            fontSize: 12,
-            color: COLORS.yellow
-          }}>
+          <p
+            style={{
+              marginTop: 12,
+              fontSize: 12,
+              color: COLORS.yellow
+            }}
+          >
             Secure Stripe checkout enabled
           </p>
-
         </div>
 
         {/* ENTERPRISE */}
         <div style={planCard}>
-
           <h2>Enterprise</h2>
 
           <ul>
             <li>✔ Multi-site management</li>
-            <li>✔ Compliance consulting</li>
+            <li>✔ Enterprise reporting</li>
             <li>✔ Dedicated support</li>
+            <li>✔ Compliance consulting</li>
             <li>✔ Custom integrations</li>
+            <li>✔ Executive dashboards</li>
           </ul>
 
-          <h3>Custom</h3>
+          <h3>Custom Pricing</h3>
 
           <button
             onClick={contactSales}
@@ -230,16 +230,15 @@ function PricingPage() {
           >
             Contact Sales
           </button>
-
         </div>
-
       </div>
 
-      <div style={{
-        textAlign: "center",
-        marginTop: 30
-      }}>
-
+      <div
+        style={{
+          textAlign: "center",
+          marginTop: 30
+        }}
+      >
         <button
           onClick={() => navigate("/")}
           style={{
@@ -253,9 +252,7 @@ function PricingPage() {
         >
           Back to Home
         </button>
-
       </div>
-
     </div>
   );
 }

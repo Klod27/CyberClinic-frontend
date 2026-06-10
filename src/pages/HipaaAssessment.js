@@ -30,7 +30,7 @@ function HipaaAssessment() {
 
   const [error, setError] = useState(null);
 
-  const [plan, setPlan] = useState("free");
+  const [plan, setPlan] = useState("demo");
   const [isPro, setIsPro] = useState(false);
 
   // ======================================
@@ -177,7 +177,7 @@ function HipaaAssessment() {
         // ======================================
 
         const currentPlan =
-          subRes?.data?.plan || "free";
+        subRes?.data?.plan || "demo";
 
         console.log(
           "FINAL PLAN:",
@@ -204,7 +204,7 @@ function HipaaAssessment() {
         } else {
 
           console.log(
-            "FREE ACCESS ENABLED"
+             "DEMO ACCESS ENABLED"
           );
 
           setIsPro(false);
@@ -554,7 +554,7 @@ function HipaaAssessment() {
         HIPAA Assessment
       </h1>
 
-      {plan === "free" && (
+      {plan === "demo" && (
 
         <p
           style={{
@@ -562,7 +562,7 @@ function HipaaAssessment() {
               "#f59e0b"
           }}
         >
-          Free plan:
+          Demo access:
           limited assessment access
         </p>
       )}

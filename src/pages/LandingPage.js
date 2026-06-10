@@ -109,7 +109,7 @@ export default function LandingPage() {
 
         <div style={{ marginTop: 30 }}>
           <button style={btnPrimary} onClick={runScan}>
-            Run Free Compliance Scan
+           Start Demo Assessment
           </button>
 
           <button style={btnSecondary} onClick={() => nav("/pricing")}>
@@ -118,7 +118,7 @@ export default function LandingPage() {
         </div>
 
         <p style={{ marginTop: 10, fontSize: 12 }}>
-          Guided assessment • Real scoring • Audit-ready reports
+          Demo assessment • Real scoring • Audit-ready reports
         </p>
 
         {/* SAFE PREVIEW */}
@@ -188,10 +188,10 @@ export default function LandingPage() {
         <h2>Simple, Transparent Pricing</h2>
 
         <div style={grid}>
-          <Pricing title="Starter" price="$49/mo" features={[
-            "Assessment",
-            "Basic reports",
-            "Email support"
+          <Pricing title="Demo" price="Included" features={[
+            "HIPAA Assessment",
+            "Compliance Score",
+            "Limited AI Insights"
           ]} />
 
           <Pricing title="Professional" price="$99/mo" highlight features={[

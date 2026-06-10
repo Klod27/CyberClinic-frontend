@@ -24,13 +24,9 @@ function ComplianceDashboard({ assessmentId }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
 
-  // ✅ backend-driven subscription state
-  const [plan, setPlan] = useState("free");
+  // Backend subscription state
+  const [plan, setPlan] = useState("demo");
   const [isPro, setIsPro] = useState(false);
-
-  // ============================
-  // LOAD DASHBOARD DATA
-  // ============================
 
   useEffect(() => {
 
@@ -56,7 +52,7 @@ function ComplianceDashboard({ assessmentId }) {
           );
 
           const subscriptionPlan =
-            subRes.data?.plan || "free";
+            subRes.data?.plan || "demo";
 
           setPlan(subscriptionPlan);
 
@@ -65,7 +61,6 @@ function ComplianceDashboard({ assessmentId }) {
             subscriptionPlan === "enterprise"
           );
 
-          // optional persistence
           localStorage.setItem(
             "plan",
             subscriptionPlan
@@ -78,7 +73,7 @@ function ComplianceDashboard({ assessmentId }) {
             subErr
           );
 
-          setPlan("free");
+          setPlan("demo");
           setIsPro(false);
         }
 
@@ -211,7 +206,7 @@ function ComplianceDashboard({ assessmentId }) {
   }));
 
   // ============================
-  // FREE VS PRO FINDINGS
+  // DEMO VS PRO FINDINGS
   // ============================
 
   const visibleFindings = isPro
@@ -223,7 +218,6 @@ function ComplianceDashboard({ assessmentId }) {
   // ============================
 
   const handlePayment = () => {
-
     window.location.href = "/pricing";
   };
 
@@ -244,7 +238,10 @@ function ComplianceDashboard({ assessmentId }) {
 
     if (data.pdf_url) {
 
-      window.open(data.pdf_url, "_blank");
+      window.open(
+        data.pdf_url,
+        "_blank"
+      );
 
       return;
     }
@@ -268,13 +265,11 @@ function ComplianceDashboard({ assessmentId }) {
       }}
     >
 
-      {/* HEADER */}
-
       <h1>
         CyberClinic Compliance Dashboard
       </h1>
 
-      {/* SUBSCRIPTION STATUS */}
+      {/* PLAN STATUS */}
 
       <div
         style={{
@@ -283,14 +278,14 @@ function ComplianceDashboard({ assessmentId }) {
         }}
       >
 
-        {plan === "free" && (
+        {plan === "demo" && (
           <div
             style={{
               color: "#facc15",
               fontWeight: "bold"
             }}
           >
-            Free Plan
+            Demo Access
           </div>
         )}
 
@@ -305,18 +300,25 @@ function ComplianceDashboard({ assessmentId }) {
           </div>
         )}
 
-      </div>
+        {plan === "enterprise" && (
+          <div
+            style={{
+              color: "#3b82f6",
+              fontWeight: "bold"
+            }}
+          >
+            Enterprise Subscription Active
+          </div>
+        )}
 
-      {/* SCORE */}
+      </div>
 
       <h2>
         Score: {data.assessment.score}%
       </h2>
 
       <h3 style={{ color: "#facc15" }}>
-        Risk Level:
-        {" "}
-        {data.assessment.risk_level}
+        Risk Level: {data.assessment.risk_level}
       </h3>
 
       {/* CHART */}
@@ -366,8 +368,7 @@ function ComplianceDashboard({ assessmentId }) {
 
       {visibleFindings.length === 0 && (
         <p>
-          No major findings available for
-          this assessment.
+          No major findings available for this assessment.
         </p>
       )}
 
@@ -388,14 +389,12 @@ function ComplianceDashboard({ assessmentId }) {
           </h3>
 
           <p>
-            <strong>Risk:</strong>
-            {" "}
+            <strong>Risk:</strong>{" "}
             {f.risk_level || f.severity}
           </p>
 
           <p>
-            <strong>Impact:</strong>
-            {" "}
+            <strong>Impact:</strong>{" "}
             {f.impact ||
               "Potential compliance exposure."}
           </p>
@@ -403,8 +402,7 @@ function ComplianceDashboard({ assessmentId }) {
           <p style={{ color: "#f87171" }}>
             <strong>
               Why this matters:
-            </strong>
-            {" "}
+            </strong>{" "}
             {f.business_impact ||
               "Failure to address this issue could result in regulatory risk, operational disruption, and loss of patient trust."}
           </p>
@@ -424,7 +422,6 @@ function ComplianceDashboard({ assessmentId }) {
           {Array.isArray(
             data.ai_recommendations
           )
-
             ? data.ai_recommendations.map(
                 (r, i) => (
                   <p key={i}>
@@ -432,7 +429,6 @@ function ComplianceDashboard({ assessmentId }) {
                   </p>
                 )
               )
-
             : (
               <p>
                 {data.ai_recommendations}
@@ -441,7 +437,7 @@ function ComplianceDashboard({ assessmentId }) {
         </>
       )}
 
-      {/* FREE PAYWALL */}
+      {/* DEMO PAYWALL */}
 
       {!isPro && (
 
@@ -457,11 +453,11 @@ function ComplianceDashboard({ assessmentId }) {
         >
 
           <h2>
-            🔒 Full Report Locked
+            🔒 Demo Mode Limit Reached
           </h2>
 
           <p>
-            Unlock:
+            Upgrade to Pro to unlock:
           </p>
 
           <ul
@@ -471,25 +467,11 @@ function ComplianceDashboard({ assessmentId }) {
               margin: "0 auto"
             }}
           >
-            <li>
-              Full assessment findings
-            </li>
-
-            <li>
-              AI remediation guidance
-            </li>
-
-            <li>
-              PDF audit reports
-            </li>
-
-            <li>
-              Audit-ready documentation
-            </li>
-
-            <li>
-              Advanced compliance insights
-            </li>
+            <li>Full assessment findings</li>
+            <li>AI remediation guidance</li>
+            <li>PDF audit reports</li>
+            <li>Audit-ready documentation</li>
+            <li>Advanced compliance insights</li>
           </ul>
 
           <button
@@ -504,7 +486,7 @@ function ComplianceDashboard({ assessmentId }) {
         </div>
       )}
 
-      {/* ACTION BUTTONS */}
+      {/* ACTIONS */}
 
       <div style={{ marginTop: 30 }}>
 
@@ -520,7 +502,9 @@ function ComplianceDashboard({ assessmentId }) {
           onClick={() =>
             (window.location.href = "/dashboard")
           }
-          style={{ marginLeft: 10 }}
+          style={{
+            marginLeft: 10
+          }}
         >
           Go to Dashboard
         </button>
@@ -529,7 +513,9 @@ function ComplianceDashboard({ assessmentId }) {
 
           <button
             onClick={downloadReport}
-            style={{ marginLeft: 10 }}
+            style={{
+              marginLeft: 10
+            }}
           >
             Download PDF
           </button>
